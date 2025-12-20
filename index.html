@@ -2,416 +2,452 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Jeu de craft (QR)</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>Craft QR</title>
   <style>
-    :root { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
-    body { margin: 16px; max-width: 980px; }
-    h1 { margin: 0 0 12px; font-size: 22px; }
-    .row { display: grid; grid-template-columns: 1fr; gap: 12px; }
-    @media (min-width: 900px) { .row { grid-template-columns: 1.2fr .8fr; } }
-    .card { border: 1px solid #ddd; border-radius: 12px; padding: 12px; }
-    .muted { color: #666; font-size: 13px; }
-    video { width: 100%; border-radius: 12px; background: #000; }
-    button { padding: 10px 12px; border-radius: 10px; border: 1px solid #ccc; background: #fff; cursor: pointer; }
-    button.primary { background: #111; color: #fff; border-color: #111; }
-    button:disabled { opacity: .55; cursor: not-allowed; }
-    .pill { display: inline-block; padding: 6px 10px; border-radius: 999px; background: #f4f4f4; border: 1px solid #e6e6e6; font-size: 13px; }
-    .ok { background: #ecfff0; border-color: #bfe7c9; }
-    .bad { background: #fff3f3; border-color: #f0c2c2; }
-    .grid2 { display: grid; grid-template-columns: 1fr; gap: 8px; }
-    @media (min-width: 520px) { .grid2 { grid-template-columns: 1fr 1fr; } }
-    input { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid #ccc; }
-    ul { margin: 8px 0 0; padding-left: 18px; }
-    .sep { height: 1px; background: #eee; margin: 12px 0; }
-    .small { font-size: 13px; }
-    .right { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
-    #result { white-space: pre-line; }
+    :root {
+      --w: 1365;
+      --h: 2048;
+      --font: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
 
-    /* Optionnel : petite bordure si tu actives highlightScanRegion */
-    .qr-overlay {
+      /* Zones (en %) */
+      --cam-left: 29.82%;
+      --cam-top: 24.66%;
+      --cam-width: 40.29%;
+      --cam-height: 18.31%;
+
+      --slot1-left: 13.76%;
+      --slot1-top: 56.15%;
+      --slot1-width: 17.3%;
+      --slot1-height: 11.52%;
+
+      --slot2-left: 69.33%;
+      --slot2-top: 56.15%;
+      --slot2-width: 17.3%;
+      --slot2-height: 11.52%;
+
+      --msg-left: 5.15%;
+      --msg-top: 80.79%;
+      --msg-width: 89.75%;
+      --msg-height: 15.95%;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      background: #0b0b0b;
+      display: grid;
+      place-items: center;
+      font-family: var(--font);
+      overscroll-behavior: none;
+      touch-action: manipulation;
+    }
+
+    /* Plateau (image de fond) */
+    #board {
+      position: relative;
+      width: min(100vw, calc(100vh * (var(--w) / var(--h))));
+      aspect-ratio: var(--w) / var(--h);
+      background: url("UI.png") center/contain no-repeat;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    /* Zone caméra */
+    #camRegion {
+      position: absolute;
+      left: var(--cam-left);
+      top: var(--cam-top);
+      width: var(--cam-width);
+      height: var(--cam-height);
+      overflow: hidden;
+      border-radius: 18px;
+      background: #000;
+    }
+
+    #video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      transform: translateZ(0);
+    }
+
+    #camOverlay {
       position: absolute;
       inset: 0;
+      display: grid;
+      place-itemsContent: center;
+      padding: 12px;
+      text-align: center;
+      color: rgba(255,255,255,0.92);
+      font-weight: 800;
+      text-shadow: 0 2px 12px rgba(0,0,0,0.9);
+      background: linear-gradient(to bottom, rgba(0,0,0,0.55), rgba(0,0,0,0.15));
       pointer-events: none;
+      opacity: 1;
+      transition: opacity .2s ease;
     }
-    .video-wrap {
-      position: relative;
+    #camOverlay.hidden { opacity: 0; }
+
+    #tinyControls {
+      position: absolute;
+      left: 10px;
+      top: 10px;
+      display: flex;
+      gap: 8px;
+      z-index: 3;
+    }
+
+    .tinyBtn {
+      border: 0;
+      border-radius: 12px;
+      padding: 8px 10px;
+      font-weight: 800;
+      cursor: pointer;
+      background: rgba(255,255,255,0.9);
+      box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+    }
+    .tinyBtn:active { transform: translateY(1px); }
+
+    /* Slots cartes */
+    .slot {
+      position: absolute;
+      overflow: hidden;
+      border-radius: 10px;
+    }
+    #slot1 { left: var(--slot1-left); top: var(--slot1-top); width: var(--slot1-width); height: var(--slot1-height); }
+    #slot2 { left: var(--slot2-left); top: var(--slot2-top); width: var(--slot2-width); height: var(--slot2-height); }
+
+    .slot img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: none;
+      cursor: pointer;
+      filter: drop-shadow(0 10px 14px rgba(0,0,0,0.35));
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* ===== TEXTE: transparent + blanc + toujours dans le cadre ===== */
+    #messageBox {
+      position: absolute;
+      left: var(--msg-left);
+      top: var(--msg-top);
+      width: var(--msg-width);
+      height: var(--msg-height);         /* hauteur fixe pour pouvoir “fit” le texte */
+      padding: 10px 12px;
+
+      background: transparent;
+      border: none;
+      box-shadow: none;
+
+      color: #fff;
+      font-weight: 900;
+      line-height: 1.15;
+      text-align: center;
+      white-space: pre-line;
+      overflow: hidden;                 /* empêche de déborder */
+
+      /* taille de base, puis JS réduira si nécessaire */
+      font-size: clamp(14px, 2.2vw, 30px);
+
+      /* lisibilité sur fond */
+      text-shadow: 0 2px 10px rgba(0,0,0,0.9);
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #messageBox.ok  { text-shadow: 0 2px 10px rgba(0,0,0,0.9), 0 0 14px rgba(60, 200, 120, 0.35); }
+    #messageBox.bad { text-shadow: 0 2px 10px rgba(0,0,0,0.9), 0 0 14px rgba(240, 80, 80, 0.35); }
+
+    /* Démarrage caméra via geste utilisateur */
+    #startHitbox {
+      position: absolute;
+      inset: 0;
+      cursor: pointer;
     }
   </style>
 </head>
 <body>
-  <h1>Jeu de craft — scan 2 QR codes</h1>
-  <div class="muted">
-    Principe : tu scannes 2 cartes. Si la combinaison correspond à une recette, l’objet est crafté et l’app indique la/les nouvelles cartes à récupérer.
-    <br/>
-    Remarque : la caméra nécessite généralement un site en <b>HTTPS</b> ou <b>localhost</b>.
-  </div>
+  <div id="board">
+    <div id="camRegion">
+      <video id="video" playsinline muted></video>
 
-  <div class="row" style="margin-top:12px;">
-    <div class="card">
-      <div class="right">
-        <button id="btnStart" class="primary">Démarrer la caméra</button>
-        <button id="btnStop" disabled>Arrêter</button>
-        <span id="supportBadge" class="pill">Détection QR : …</span>
+      <div id="tinyControls">
+        <button class="tinyBtn" id="btnStop" title="Arrêter la caméra" style="display:none;">⏹</button>
+        <button class="tinyBtn" id="btnReset" title="Retirer les 2 cartes">↺</button>
       </div>
 
-      <div class="sep"></div>
-
-      <div class="video-wrap">
-        <video id="video" playsinline muted></video>
-        <!-- Optionnel si tu veux un overlay perso -->
-        <div id="overlay" class="qr-overlay"></div>
+      <div id="camOverlay">
+        Touchez ici pour activer la caméra<br/>
+        puis scannez 2 QR codes
       </div>
 
-      <div class="sep"></div>
-
-      <div class="grid2">
-        <div>
-          <div class="muted">Carte 1</div>
-          <div id="slot1" class="pill mono">—</div>
-        </div>
-        <div>
-          <div class="muted">Carte 2</div>
-          <div id="slot2" class="pill mono">—</div>
-        </div>
-      </div>
-
-      <div class="sep"></div>
-
-      <div id="result" class="pill">Prêt.</div>
-
-      <div class="sep"></div>
-
-      <div class="muted">Saisie manuelle (fallback si caméra/QR non dispo)</div>
-      <div class="grid2" style="margin-top:8px;">
-        <input id="manual1" placeholder="QR carte 1 (ex: 0001)" />
-        <input id="manual2" placeholder="QR carte 2 (ex: 0002)" />
-      </div>
-      <div class="right" style="margin-top:8px;">
-        <button id="btnTryManual">Tester la combinaison</button>
-        <button id="btnReset">Réinitialiser les slots</button>
-      </div>
+      <div id="startHitbox" aria-label="Démarrer la caméra"></div>
     </div>
 
-    <div class="card">
-      <div style="display:flex; justify-content:space-between; gap:12px; align-items:center;">
-        <div>
-          <div style="font-weight:600;">Inventaire (optionnel)</div>
-          <div class="muted">Objets craftés enregistrés en local sur l’appareil</div>
-        </div>
-        <button id="btnClear" title="Supprime l'historique local">Vider</button>
-      </div>
+    <div id="slot1" class="slot"><img id="img1" alt="Carte 1" /></div>
+    <div id="slot2" class="slot"><img id="img2" alt="Carte 2" /></div>
 
-      <div class="sep"></div>
-
-      <div class="small">
-        <div class="muted">Derniers crafts</div>
-        <ul id="history"></ul>
-      </div>
-
-      <div class="sep"></div>
-
-      <div class="small">
-        <div class="muted">Recettes (exemples à modifier)</div>
-        <ul id="recipesList"></ul>
-        <div class="muted" style="margin-top:8px;">
-          Les QR codes doivent contenir un identifiant texte (ex: <span class="mono">0001</span>, <span class="mono">0002</span>).
-          Modifie la constante <span class="mono">RECIPES</span> dans le JS pour adapter ton jeu.
-        </div>
-      </div>
-    </div>
+    <div id="messageBox">Prêt. Scanne une première carte.</div>
   </div>
 
   <!-- QR-SCANNER (UMD) + Worker -->
   <script src="https://unpkg.com/qr-scanner@1.4.2/qr-scanner.umd.min.js"></script>
   <script>
-    // Le worker doit être accessible via URL (sinon la détection ne marche pas partout)
-    // (qr-scanner.umd.min.js + qr-scanner-worker.min.js existent dans le package)
-    // cf. listing unpkg.
     QrScanner.WORKER_PATH = "https://unpkg.com/qr-scanner@1.4.2/qr-scanner-worker.min.js";
   </script>
 
-<script>
-/**
- * === CONFIG DU JEU (IDs "0001", "0002", etc.) ===
- */
-const CARDS = {
-  "0001": "Bois",
-  "0002": "Pierre",
-  "0003": "Fer",
-  "0004": "Corde",
-  "0005": "Herbes",
-  "0006": "Eau",
-};
+  <script>
+    /**
+     * ===== CONFIG =====
+     * UI.png à côté du fichier.
+     * Images cartes : /cards/0001.png etc.
+     */
+    const CARD_IMAGE_BASE = "cards/";
+    const CARD_IMAGE_EXTS = ["png", "jpg", "jpeg", "webp"];
 
-function keyOf(a, b) {
-  const A = String(a).trim();
-  const B = String(b).trim();
-  return [A, B].sort().join("|");
-}
+    function keyOf(a, b) {
+      const A = String(a).trim();
+      const B = String(b).trim();
+      return [A, B].sort().join("|");
+    }
 
-// Exemples de recettes (à remplacer par les tiennes)
-const RECIPES = {
-  [keyOf("0001", "0002")]: {
-    item: "Hache",
-    newCards: [
-      "Récupérer la carte 0003 (zone atelier)",
-      "Récupérer la carte 0004 (table 2)"
-    ]
-  },
-  [keyOf("0003", "0001")]: {
-    item: "Bouclier",
-    newCards: [
-      "Récupérer la carte 0005 (jardin)",
-    ]
-  },
-  [keyOf("0005", "0006")]: {
-    item: "Potion",
-    newCards: [
-      "Récupérer la carte 0004 (accueil)",
-      "Récupérer la carte 0002 (zone mine)",
-    ]
-  },
-  [keyOf("0001", "0001")]: {
-    item: "Planche",
-    newCards: [
-      "Récupérer la carte 0002 (zone mine)"
-    ]
-  }
-};
+    const RECIPES = {
+      [keyOf("0001","0002")]: { item: "Hache" },
+      [keyOf("0003","0001")]: { item: "Bouclier", newCards: ["Récupère 0005"] },
+      [keyOf("0005","0006")]: { item: "Potion",   newCards: ["Récupère 0004", "Récupère 0002"] },
+    };
 
-/**
- * === APP ===
- */
-const els = {
-  video: document.getElementById("video"),
-  overlay: document.getElementById("overlay"),
-  btnStart: document.getElementById("btnStart"),
-  btnStop: document.getElementById("btnStop"),
-  btnReset: document.getElementById("btnReset"),
-  btnTryManual: document.getElementById("btnTryManual"),
-  btnClear: document.getElementById("btnClear"),
-  supportBadge: document.getElementById("supportBadge"),
-  slot1: document.getElementById("slot1"),
-  slot2: document.getElementById("slot2"),
-  result: document.getElementById("result"),
-  manual1: document.getElementById("manual1"),
-  manual2: document.getElementById("manual2"),
-  history: document.getElementById("history"),
-  recipesList: document.getElementById("recipesList"),
-};
+    const els = {
+      startHitbox: document.getElementById("startHitbox"),
+      camOverlay: document.getElementById("camOverlay"),
+      btnStop: document.getElementById("btnStop"),
+      btnReset: document.getElementById("btnReset"),
+      video: document.getElementById("video"),
+      msg: document.getElementById("messageBox"),
+      img1: document.getElementById("img1"),
+      img2: document.getElementById("img2"),
+    };
 
-let qrScanner = null;
-let slotA = null;
-let slotB = null;
+    let qrScanner = null;
+    let slot1 = null;
+    let slot2 = null;
 
-// anti-spam (évite de rescanner le même QR en boucle)
-const seenCooldownMs = 1400;
-const lastSeen = new Map(); // code -> timestamp
+    const COOLDOWN_MS = 1200;
+    const lastSeen = new Map();
 
-const LS_KEY = "craft_history_v1";
+    // 1x1 transparent (évite les erreurs de chargement quand on “vide” une image)
+    const BLANK_IMG = "data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=";
 
-function cardLabel(id) {
-  const t = String(id);
-  return CARDS[t] ? `${CARDS[t]} (${t})` : t;
-}
+    function fitMessageText() {
+      // Réduit la taille du texte jusqu’à ce qu’il tienne dans le cadre
+      const el = els.msg;
+      el.style.fontSize = ""; // reset à la valeur CSS (clamp)
+      const computed = getComputedStyle(el);
+      let size = parseFloat(computed.fontSize) || 18;
+      const min = 12;
 
-function setResult(text, kind = "neutral") {
-  els.result.textContent = text;
-  els.result.className = "pill";
-  if (kind === "ok") els.result.classList.add("ok");
-  if (kind === "bad") els.result.classList.add("bad");
-}
-
-function renderSlots() {
-  els.slot1.textContent = slotA ? cardLabel(slotA) : "—";
-  els.slot2.textContent = slotB ? cardLabel(slotB) : "—";
-}
-
-function loadHistory() {
-  try { return JSON.parse(localStorage.getItem(LS_KEY) || "[]"); }
-  catch { return []; }
-}
-
-function saveHistory(list) {
-  localStorage.setItem(LS_KEY, JSON.stringify(list));
-}
-
-function renderHistory() {
-  const list = loadHistory();
-  els.history.innerHTML = "";
-  if (list.length === 0) {
-    const li = document.createElement("li");
-    li.className = "muted";
-    li.textContent = "Aucun craft pour l’instant.";
-    els.history.appendChild(li);
-    return;
-  }
-  for (const entry of list.slice(0, 10)) {
-    const li = document.createElement("li");
-    li.innerHTML = `<span class="mono">${entry.when}</span> — <b>${entry.item}</b> <span class="muted">(${entry.pair})</span>`;
-    els.history.appendChild(li);
-  }
-}
-
-function renderRecipes() {
-  els.recipesList.innerHTML = "";
-  const keys = Object.keys(RECIPES);
-  for (const k of keys) {
-    const [a,b] = k.split("|");
-    const r = RECIPES[k];
-    const li = document.createElement("li");
-    li.innerHTML = `<span class="mono">${a} + ${b}</span> → <b>${r.item}</b>`;
-    els.recipesList.appendChild(li);
-  }
-}
-
-function resetSlots() {
-  slotA = null;
-  slotB = null;
-  renderSlots();
-  setResult("Prêt.", "neutral");
-}
-
-function tryCraft(a, b) {
-  const k = keyOf(a, b);
-  const recipe = RECIPES[k];
-  if (!recipe) {
-    setResult(`Aucune recette pour ${cardLabel(a)} + ${cardLabel(b)}.`, "bad");
-    return;
-  }
-
-  const now = new Date();
-  const stamp = now.toLocaleString("fr-FR");
-  const hist = loadHistory();
-  hist.unshift({ when: stamp, pair: k, item: recipe.item });
-  saveHistory(hist);
-  renderHistory();
-
-  const lines = [
-    `✅ Objet crafté : ${recipe.item}`,
-    ...(recipe.newCards?.length ? ["", "Cartes à récupérer :", ...recipe.newCards.map(s => `• ${s}`)] : [])
-  ];
-  setResult(lines.join("\n"), "ok");
-}
-
-function handleCode(code) {
-  const value = String(code).trim();
-  if (!value) return;
-
-  const now = Date.now();
-  const last = lastSeen.get(value) || 0;
-  if (now - last < seenCooldownMs) return;
-  lastSeen.set(value, now);
-
-  if (!slotA) {
-    slotA = value;
-    renderSlots();
-    setResult(`Carte 1 enregistrée : ${cardLabel(slotA)}. Scanne la 2e carte.`, "neutral");
-    return;
-  }
-  if (!slotB) {
-    slotB = value;
-    renderSlots();
-    setResult(`Carte 2 enregistrée : ${cardLabel(slotB)}. Vérification…`, "neutral");
-    tryCraft(slotA, slotB);
-    return;
-  }
-
-  // Si déjà 2 slots, on redémarre une nouvelle paire
-  slotA = value;
-  slotB = null;
-  renderSlots();
-  setResult(`Nouvelle série : Carte 1 = ${cardLabel(slotA)}. Scanne la 2e carte.`, "neutral");
-}
-
-async function startCamera() {
-  // qr-scanner gère lui-même getUserMedia; HTTPS requis pour la webcam.
-  // (c’est une contrainte Web standard rappelée dans la doc du projet)
-  if (!qrScanner) {
-    qrScanner = new QrScanner(
-      els.video,
-      (result) => {
-        // Avec returnDetailedScanResult: true => result = { data, cornerPoints }
-        handleCode(result?.data ?? result);
-      },
-      {
-        returnDetailedScanResult: true,
-        preferredCamera: "environment",
-        maxScansPerSecond: 12,
-        // highlightScanRegion: true,   // si tu veux un cadre
-        // highlightCodeOutline: true,  // si tu veux l’outline du QR
-        // overlay: els.overlay,        // si highlight* activés, l’overlay doit être sibling du <video> (ici c’est le cas)
-        onDecodeError: () => { /* silencieux */ }
+      // Si ça déborde, on diminue
+      while (el.scrollHeight > el.clientHeight && size > min) {
+        size -= 1;
+        el.style.fontSize = size + "px";
       }
-    );
-  }
+    }
 
-  try {
-    await qrScanner.start();
-    els.btnStart.disabled = true;
-    els.btnStop.disabled = false;
-    setResult("Caméra active. Scanne une carte.", "neutral");
-  } catch (e) {
-    setResult("Impossible d’accéder à la caméra (permission refusée ? HTTPS requis ?). Utilise la saisie manuelle.", "bad");
-  }
-}
+    function setMessage(text, kind = "") {
+      els.msg.textContent = text;
+      els.msg.classList.remove("ok", "bad");
+      if (kind) els.msg.classList.add(kind);
 
-function stopCamera() {
-  if (!qrScanner) return;
-  qrScanner.stop();
-  els.btnStart.disabled = false;
-  els.btnStop.disabled = true;
-  setResult("Caméra arrêtée.", "neutral");
-}
+      // fit après layout
+      requestAnimationFrame(fitMessageText);
+    }
 
-// UI events
-els.btnStart.addEventListener("click", startCamera);
-els.btnStop.addEventListener("click", stopCamera);
-els.btnReset.addEventListener("click", resetSlots);
+    function normalizeCode(raw) {
+      const s = String(raw ?? "").trim();
+      const m = s.match(/\b\d{4}\b/);
+      return (m ? m[0] : s).trim();
+    }
 
-els.btnTryManual.addEventListener("click", () => {
-  const a = els.manual1.value.trim();
-  const b = els.manual2.value.trim();
-  if (!a || !b) {
-    setResult("Renseigne 2 valeurs (carte 1 + carte 2).", "bad");
-    return;
-  }
-  slotA = a; slotB = b;
-  renderSlots();
-  tryCraft(a, b);
-});
+    function clearSlot(n) {
+      const imgEl = (n === 1) ? els.img1 : els.img2;
 
-els.btnClear.addEventListener("click", () => {
-  localStorage.removeItem(LS_KEY);
-  renderHistory();
-  setResult("Historique effacé.", "neutral");
-});
+      // IMPORTANT: on neutralise les handlers avant de changer src (sinon “image introuvable” au clic)
+      imgEl.onerror = null;
+      imgEl.onload = null;
 
-// init
-renderSlots();
-renderHistory();
-renderRecipes();
+      if (n === 1) slot1 = null; else slot2 = null;
 
-// badge init (caméra dispo ?)
-QrScanner.hasCamera().then(hasCam => {
-  if (hasCam) {
-    els.supportBadge.textContent = "Détection QR : OK (qr-scanner)";
-    els.supportBadge.className = "pill ok";
-  } else {
-    els.supportBadge.textContent = "Caméra non détectée (saisie manuelle)";
-    els.supportBadge.className = "pill bad";
-  }
-});
+      imgEl.removeAttribute("data-code");
+      imgEl.style.display = "none";
+      imgEl.src = BLANK_IMG; // pas d’erreur réseau
 
-// clean up
-window.addEventListener("beforeunload", () => {
-  if (qrScanner) {
-    qrScanner.destroy();
-    qrScanner = null;
-  }
-});
-</script>
+      if (!slot1 && !slot2) {
+        setMessage("Prêt. Scanne une première carte.");
+      } else if (slot1 && !slot2) {
+        setMessage("Carte 1 en place.\nScanne la deuxième carte.");
+      } else if (!slot1 && slot2) {
+        setMessage("Carte 2 en place.\nScanne la première carte.");
+      } else {
+        evaluateCraft();
+      }
+    }
+
+    function clearBoth() {
+      clearSlot(1);
+      clearSlot(2);
+    }
+
+    function setSlotImage(imgEl, code) {
+      // reset handlers
+      imgEl.onerror = null;
+      imgEl.onload = null;
+
+      imgEl.style.display = "block";
+      imgEl.setAttribute("data-code", code);
+
+      let idx = 0;
+
+      const tryNext = () => {
+        // Si le slot a changé entre-temps (clic / autre scan), on arrête.
+        if (imgEl.getAttribute("data-code") !== code) return;
+
+        if (idx >= CARD_IMAGE_EXTS.length) {
+          // Image réellement absente -> message d’erreur (pas lié au clic)
+          setMessage(
+            `Image introuvable pour le code ${code}.\nVérifie: ${CARD_IMAGE_BASE}${code}.png`,
+            "bad"
+          );
+          return;
+        }
+        const ext = CARD_IMAGE_EXTS[idx++];
+        imgEl.src = `${CARD_IMAGE_BASE}${code}.${ext}`;
+      };
+
+      imgEl.onerror = () => {
+        // Si le slot a été vidé, on ignore l’erreur
+        if (imgEl.getAttribute("data-code") !== code) return;
+        tryNext();
+      };
+
+      tryNext();
+    }
+
+    function placeCard(code) {
+      if (slot1 && slot2) {
+        setMessage("Deux cartes déjà en place.\nTouchez une carte pour la retirer et rescanner.", "bad");
+        return;
+      }
+
+      if (!slot1) {
+        slot1 = code;
+        setSlotImage(els.img1, code);
+        setMessage("Carte 1 enregistrée.\nScanne la deuxième carte.");
+        return;
+      }
+
+      if (!slot2) {
+        slot2 = code;
+        setSlotImage(els.img2, code);
+        evaluateCraft();
+      }
+    }
+
+    function evaluateCraft() {
+      if (!slot1 || !slot2) return;
+
+      const k = keyOf(slot1, slot2);
+      const recipe = RECIPES[k];
+
+      if (!recipe) {
+        if (navigator.vibrate) navigator.vibrate([40, 60, 40]);
+        setMessage("Mauvaise association.\nTouchez une carte pour la retirer.", "bad");
+        return;
+      }
+
+      const lines = [
+        `Objet crafté : ${recipe.item}`,
+        ...(recipe.newCards?.length ? ["", "À récupérer :", ...recipe.newCards.map(x => `• ${x}`)] : [])
+      ];
+
+      if (navigator.vibrate) navigator.vibrate(80);
+      setMessage(lines.join("\n"), "ok");
+    }
+
+    function onDetected(raw) {
+      const code = normalizeCode(raw);
+      if (!code) return;
+
+      const now = Date.now();
+      const last = lastSeen.get(code) || 0;
+      if (now - last < COOLDOWN_MS) return;
+      lastSeen.set(code, now);
+
+      placeCard(code);
+    }
+
+    async function startScanner() {
+      if (qrScanner) return;
+
+      qrScanner = new QrScanner(
+        els.video,
+        (result) => onDetected(result?.data ?? result),
+        {
+          preferredCamera: "environment",
+          returnDetailedScanResult: true,
+          maxScansPerSecond: 12,
+        }
+      );
+
+      try {
+        await qrScanner.start();
+        els.camOverlay.classList.add("hidden");
+        els.btnStop.style.display = "inline-block";
+        if (!slot1 && !slot2) setMessage("Caméra active.\nScanne une première carte.");
+      } catch {
+        qrScanner.destroy();
+        qrScanner = null;
+        setMessage("Impossible d’accéder à la caméra.\nOuvre la page en HTTPS (ou localhost) et accepte la permission.", "bad");
+      }
+    }
+
+    function stopScanner() {
+      if (!qrScanner) return;
+      qrScanner.stop();
+      qrScanner.destroy();
+      qrScanner = null;
+      els.btnStop.style.display = "none";
+      els.camOverlay.classList.remove("hidden");
+      setMessage("Caméra arrêtée.\nTouchez l’écran caméra pour redémarrer.");
+    }
+
+    // Events
+    els.startHitbox.addEventListener("click", startScanner);
+    els.startHitbox.addEventListener("touchend", (e) => { e.preventDefault(); startScanner(); }, { passive: false });
+
+    els.btnStop.addEventListener("click", stopScanner);
+    els.btnReset.addEventListener("click", clearBoth);
+
+    // Tap sur carte => suppression sans déclencher d’erreur d’image
+    els.img1.addEventListener("click", () => clearSlot(1));
+    els.img2.addEventListener("click", () => clearSlot(2));
+    els.img1.addEventListener("touchend", (e) => { e.preventDefault(); clearSlot(1); }, { passive: false });
+    els.img2.addEventListener("touchend", (e) => { e.preventDefault(); clearSlot(2); }, { passive: false });
+
+    window.addEventListener("beforeunload", () => {
+      if (qrScanner) {
+        qrScanner.stop();
+        qrScanner.destroy();
+        qrScanner = null;
+      }
+    });
+
+    // init fit
+    requestAnimationFrame(fitMessageText);
+  </script>
 </body>
 </html>

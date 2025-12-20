@@ -10,26 +10,26 @@
       --h: 2048;
       --font: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
 
-      /* Zones (en %) calculées sur l’image fournie */
+      /* Zones (en %) */
       --cam-left: 29.82%;
       --cam-top: 24.66%;
       --cam-width: 40.29%;
       --cam-height: 18.31%;
 
-      --slot1-left: 16.996%;
+      --slot1-left: 13.76%;
       --slot1-top: 56.15%;
-      --slot1-width: 14.73%;
-      --slot1-height: 10.74%;
+      --slot1-width: 17.3%;
+      --slot1-height: 11.52%;
 
-      --slot2-left: 68.205%;
+      --slot2-left: 69.33%;
       --slot2-top: 56.15%;
-      --slot2-width: 14.58%;
-      --slot2-height: 10.84%;
+      --slot2-width: 17.3%;
+      --slot2-height: 11.52%;
 
-      --msg-left: 10%;
-      --msg-top: 70%;
-      --msg-width: 80%;
-      --msg-height: 22%;
+      --msg-left: 5.15%;
+      --msg-top: 80.79%;
+      --msg-width: 89.75%;
+      --msg-height: 15.95%;
     }
 
     * { box-sizing: border-box; }
@@ -54,7 +54,7 @@
       -webkit-user-select: none;
     }
 
-    /* Zone caméra (dans le carré noir) */
+    /* Zone caméra */
     #camRegion {
       position: absolute;
       left: var(--cam-left);
@@ -78,12 +78,12 @@
       position: absolute;
       inset: 0;
       display: grid;
-      place-items: center;
+      place-itemsContent: center;
       padding: 12px;
       text-align: center;
       color: rgba(255,255,255,0.92);
-      font-weight: 700;
-      text-shadow: 0 1px 8px rgba(0,0,0,0.8);
+      font-weight: 800;
+      text-shadow: 0 2px 12px rgba(0,0,0,0.9);
       background: linear-gradient(to bottom, rgba(0,0,0,0.55), rgba(0,0,0,0.15));
       pointer-events: none;
       opacity: 1;
@@ -104,7 +104,7 @@
       border: 0;
       border-radius: 12px;
       padding: 8px 10px;
-      font-weight: 700;
+      font-weight: 800;
       cursor: pointer;
       background: rgba(255,255,255,0.9);
       box-shadow: 0 6px 18px rgba(0,0,0,0.25);
@@ -124,54 +124,50 @@
       width: 100%;
       height: 100%;
       object-fit: contain;
-      display: none; /* visible uniquement quand une carte est posée */
+      display: none;
       cursor: pointer;
       filter: drop-shadow(0 10px 14px rgba(0,0,0,0.35));
       -webkit-tap-highlight-color: transparent;
     }
 
-    /* Message (zone du bas) */
+    /* ===== TEXTE: transparent + blanc + toujours dans le cadre ===== */
     #messageBox {
       position: absolute;
       left: var(--msg-left);
       top: var(--msg-top);
       width: var(--msg-width);
-      min-height: var(--msg-height);
-      padding: 14px 14px;
-      border-radius: 16px;
-      background: rgba(255, 248, 220, 0.92);
-      border: 2px solid rgba(120, 80, 30, 0.65);
-      box-shadow: 0 18px 28px rgba(0,0,0,0.28);
-      color: #2b1a0d;
-      font-weight: 700;
-      line-height: 1.25;
-      white-space: pre-line;
-    }
-    #messageBox.ok {
-      background: rgba(232, 255, 236, 0.92);
-      border-color: rgba(60, 160, 90, 0.6);
-    }
-    #messageBox.bad {
-      background: rgba(255, 235, 235, 0.92);
-      border-color: rgba(190, 70, 70, 0.6);
-    }
+      height: var(--msg-height);         /* hauteur fixe pour pouvoir “fit” le texte */
+      padding: 10px 12px;
 
-    /* Zone cliquable pour démarrer la caméra (exigence navigateur) */
+      background: transparent;
+      border: none;
+      box-shadow: none;
+
+      color: #fff;
+      font-weight: 900;
+      line-height: 1.15;
+      text-align: center;
+      white-space: pre-line;
+      overflow: hidden;                 /* empêche de déborder */
+
+      /* taille de base, puis JS réduira si nécessaire */
+      font-size: clamp(14px, 2.2vw, 30px);
+
+      /* lisibilité sur fond */
+      text-shadow: 0 2px 10px rgba(0,0,0,0.9);
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #messageBox.ok  { text-shadow: 0 2px 10px rgba(0,0,0,0.9), 0 0 14px rgba(60, 200, 120, 0.35); }
+    #messageBox.bad { text-shadow: 0 2px 10px rgba(0,0,0,0.9), 0 0 14px rgba(240, 80, 80, 0.35); }
+
+    /* Démarrage caméra via geste utilisateur */
     #startHitbox {
       position: absolute;
       inset: 0;
       cursor: pointer;
-    }
-
-    /* Debug discret (optionnel) */
-    #debug {
-      position: absolute;
-      left: 10px;
-      bottom: 10px;
-      font-size: 12px;
-      color: rgba(255,255,255,0.75);
-      text-shadow: 0 1px 8px rgba(0,0,0,0.8);
-      display: none;
     }
   </style>
 </head>
@@ -190,7 +186,6 @@
         puis scannez 2 QR codes
       </div>
 
-      <!-- hitbox de démarrage (au-dessus de la vidéo) -->
       <div id="startHitbox" aria-label="Démarrer la caméra"></div>
     </div>
 
@@ -198,12 +193,9 @@
     <div id="slot2" class="slot"><img id="img2" alt="Carte 2" /></div>
 
     <div id="messageBox">Prêt. Scanne une première carte.</div>
-
-    <div id="debug"></div>
   </div>
 
   <!-- QR-SCANNER (UMD) + Worker -->
-  <!-- Option production : télécharge ces 2 fichiers et sers-les en local pour éviter la dépendance CDN -->
   <script src="https://unpkg.com/qr-scanner@1.4.2/qr-scanner.umd.min.js"></script>
   <script>
     QrScanner.WORKER_PATH = "https://unpkg.com/qr-scanner@1.4.2/qr-scanner-worker.min.js";
@@ -212,14 +204,12 @@
   <script>
     /**
      * ===== CONFIG =====
-     * 1) Mets l’image UI en "UI.png" à côté de ce fichier.
-     * 2) Mets les images des cartes dans /cards/ avec le nom EXACT du code:
-     *    ex: cards/0001.png, cards/0002.png, etc.
+     * UI.png à côté du fichier.
+     * Images cartes : /cards/0001.png etc.
      */
     const CARD_IMAGE_BASE = "cards/";
     const CARD_IMAGE_EXTS = ["png", "jpg", "jpeg", "webp"];
 
-    // Recettes (exemples)
     function keyOf(a, b) {
       const A = String(a).trim();
       const B = String(b).trim();
@@ -227,14 +217,22 @@
     }
 
     const RECIPES = {
-      [keyOf("0001","0002")]: { item: "Hache", newCards: ["Récupère 0003", "Récupère 0004"] },
-      [keyOf("0003","0001")]: { item: "Bouclier", newCards: ["Récupère 0005"] },
-      [keyOf("0005","0006")]: { item: "Potion", newCards: ["Récupère 0004", "Récupère 0002"] },
+      [keyOf("0002","0004")]: { item: "Couteau" },
+      [keyOf("0001","0005")]: { item: "Fil"},
+      [keyOf("0004","0006")]: { item: "Un début de canne à pêche"},
+        [keyOf("0003","0005")]: { item: "Hameçon"},
+        [keyOf("0007","0008")]: { item: "Canne à pêche"},
+        [keyOf("0005","0010")]: { item: "Corde"},
+        [keyOf("0005","0018")]: { item: "Hache"},
+        [keyOf("0003","0005")]: { item: "Hameçon"},
+        [keyOf("0011","0012")]: { item: "Bois", item: "Feuilles"},
+        [keyOf("0015","0016")]: { item: "Cabane"},
+        [keyOf("0013","0018")]: { item: "Cabane humide"},
+        [keyOf("0002","0002")]: { item: "Etincelle"},
+        [keyOf("0019","0013")]: { item: "Feu"},
+
     };
 
-    /**
-     * ===== UI / STATE =====
-     */
     const els = {
       startHitbox: document.getElementById("startHitbox"),
       camOverlay: document.getElementById("camOverlay"),
@@ -244,51 +242,68 @@
       msg: document.getElementById("messageBox"),
       img1: document.getElementById("img1"),
       img2: document.getElementById("img2"),
-      debug: document.getElementById("debug"),
     };
 
     let qrScanner = null;
-    let slot1 = null; // code
-    let slot2 = null; // code
+    let slot1 = null;
+    let slot2 = null;
 
-    // anti spam scan (évite déclenchement multiple)
     const COOLDOWN_MS = 1200;
-    const lastSeen = new Map(); // code -> time
+    const lastSeen = new Map();
+
+    // 1x1 transparent (évite les erreurs de chargement quand on “vide” une image)
+    const BLANK_IMG = "data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=";
+
+    function fitMessageText() {
+      // Réduit la taille du texte jusqu’à ce qu’il tienne dans le cadre
+      const el = els.msg;
+      el.style.fontSize = ""; // reset à la valeur CSS (clamp)
+      const computed = getComputedStyle(el);
+      let size = parseFloat(computed.fontSize) || 18;
+      const min = 12;
+
+      // Si ça déborde, on diminue
+      while (el.scrollHeight > el.clientHeight && size > min) {
+        size -= 1;
+        el.style.fontSize = size + "px";
+      }
+    }
 
     function setMessage(text, kind = "") {
       els.msg.textContent = text;
       els.msg.classList.remove("ok", "bad");
       if (kind) els.msg.classList.add(kind);
+
+      // fit après layout
+      requestAnimationFrame(fitMessageText);
     }
 
     function normalizeCode(raw) {
       const s = String(raw ?? "").trim();
-      // robuste: si le QR contient autre chose, on extrait un bloc 4 chiffres si possible
       const m = s.match(/\b\d{4}\b/);
       return (m ? m[0] : s).trim();
     }
 
     function clearSlot(n) {
-      if (n === 1) {
-        slot1 = null;
-        els.img1.removeAttribute("data-code");
-        els.img1.style.display = "none";
-        els.img1.src = "";
-      } else {
-        slot2 = null;
-        els.img2.removeAttribute("data-code");
-        els.img2.style.display = "none";
-        els.img2.src = "";
-      }
+      const imgEl = (n === 1) ? els.img1 : els.img2;
+
+      // IMPORTANT: on neutralise les handlers avant de changer src (sinon “image introuvable” au clic)
+      imgEl.onerror = null;
+      imgEl.onload = null;
+
+      if (n === 1) slot1 = null; else slot2 = null;
+
+      imgEl.removeAttribute("data-code");
+      imgEl.style.display = "none";
+      imgEl.src = BLANK_IMG; // pas d’erreur réseau
 
       if (!slot1 && !slot2) {
         setMessage("Prêt. Scanne une première carte.");
       } else if (slot1 && !slot2) {
-        setMessage("Carte 1 en place. Scanne la deuxième carte.");
+        setMessage("Carte 1 en place.\nScanne la deuxième carte.");
       } else if (!slot1 && slot2) {
-        setMessage("Carte 2 en place. Scanne la première carte.");
+        setMessage("Carte 2 en place.\nScanne la première carte.");
       } else {
-        // 2 cartes en place => on réévalue
         evaluateCraft();
       }
     }
@@ -299,30 +314,41 @@
     }
 
     function setSlotImage(imgEl, code) {
+      // reset handlers
+      imgEl.onerror = null;
+      imgEl.onload = null;
+
       imgEl.style.display = "block";
       imgEl.setAttribute("data-code", code);
 
-      // Essaye plusieurs extensions en fallback
       let idx = 0;
-      function tryNext() {
+
+      const tryNext = () => {
+        // Si le slot a changé entre-temps (clic / autre scan), on arrête.
+        if (imgEl.getAttribute("data-code") !== code) return;
+
         if (idx >= CARD_IMAGE_EXTS.length) {
-          // fallback "introuvable"
-          imgEl.style.display = "block";
-          imgEl.src = "";
-          imgEl.alt = `Image introuvable (${code})`;
-          setMessage(`Image introuvable pour le code ${code}.\nVérifie: ${CARD_IMAGE_BASE}${code}.png`, "bad");
+          // Image réellement absente -> message d’erreur (pas lié au clic)
+          setMessage(
+            `Image introuvable pour le code ${code}.\nVérifie: ${CARD_IMAGE_BASE}${code}.png`,
+            "bad"
+          );
           return;
         }
         const ext = CARD_IMAGE_EXTS[idx++];
         imgEl.src = `${CARD_IMAGE_BASE}${code}.${ext}`;
-      }
+      };
 
-      imgEl.onerror = () => tryNext();
+      imgEl.onerror = () => {
+        // Si le slot a été vidé, on ignore l’erreur
+        if (imgEl.getAttribute("data-code") !== code) return;
+        tryNext();
+      };
+
       tryNext();
     }
 
     function placeCard(code) {
-      // slots pleins => on ignore jusqu’à suppression
       if (slot1 && slot2) {
         setMessage("Deux cartes déjà en place.\nTouchez une carte pour la retirer et rescanner.", "bad");
         return;
@@ -355,7 +381,7 @@
       }
 
       const lines = [
-        `✅ Objet crafté : ${recipe.item}`,
+        `Objet crafté : ${recipe.item}`,
         ...(recipe.newCards?.length ? ["", "À récupérer :", ...recipe.newCards.map(x => `• ${x}`)] : [])
       ];
 
@@ -372,17 +398,12 @@
       if (now - last < COOLDOWN_MS) return;
       lastSeen.set(code, now);
 
-      // Optionnel: si on veut refuser les codes inconnus, ajouter un check ici.
       placeCard(code);
     }
 
-    /**
-     * ===== CAMERA / SCANNER =====
-     */
     async function startScanner() {
-      if (qrScanner) return; // déjà démarré
+      if (qrScanner) return;
 
-      // création scanner
       qrScanner = new QrScanner(
         els.video,
         (result) => onDetected(result?.data ?? result),
@@ -390,8 +411,6 @@
           preferredCamera: "environment",
           returnDetailedScanResult: true,
           maxScansPerSecond: 12,
-          // highlightScanRegion: true,
-          // highlightCodeOutline: true,
         }
       );
 
@@ -399,8 +418,8 @@
         await qrScanner.start();
         els.camOverlay.classList.add("hidden");
         els.btnStop.style.display = "inline-block";
-        setMessage(slot1 || slot2 ? els.msg.textContent : "Caméra active.\nScanne une première carte.");
-      } catch (e) {
+        if (!slot1 && !slot2) setMessage("Caméra active.\nScanne une première carte.");
+      } catch {
         qrScanner.destroy();
         qrScanner = null;
         setMessage("Impossible d’accéder à la caméra.\nOuvre la page en HTTPS (ou localhost) et accepte la permission.", "bad");
@@ -417,23 +436,19 @@
       setMessage("Caméra arrêtée.\nTouchez l’écran caméra pour redémarrer.");
     }
 
-    /**
-     * ===== EVENTS =====
-     */
-    // Démarrage caméra (obligatoire via geste utilisateur)
+    // Events
     els.startHitbox.addEventListener("click", startScanner);
     els.startHitbox.addEventListener("touchend", (e) => { e.preventDefault(); startScanner(); }, { passive: false });
 
     els.btnStop.addEventListener("click", stopScanner);
     els.btnReset.addEventListener("click", clearBoth);
 
-    // Tap sur carte => suppression (permet le rescan)
+    // Tap sur carte => suppression sans déclencher d’erreur d’image
     els.img1.addEventListener("click", () => clearSlot(1));
     els.img2.addEventListener("click", () => clearSlot(2));
     els.img1.addEventListener("touchend", (e) => { e.preventDefault(); clearSlot(1); }, { passive: false });
     els.img2.addEventListener("touchend", (e) => { e.preventDefault(); clearSlot(2); }, { passive: false });
 
-    // Nettoyage
     window.addEventListener("beforeunload", () => {
       if (qrScanner) {
         qrScanner.stop();
@@ -441,6 +456,9 @@
         qrScanner = null;
       }
     });
+
+    // init fit
+    requestAnimationFrame(fitMessageText);
   </script>
 </body>
 </html>

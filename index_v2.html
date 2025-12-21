@@ -397,7 +397,11 @@
     "0022": { name: "Poisson" },
     "0023": { name: "Tempête" },
     "0024": { name: "Au sec" },
-    "9901": { name: "A ce rythme là je vais être trempé, il me faut un autre outil !" }
+    "9901": { name: "A ce rythme là je vais être trempé, il me faut un autre outil !" },
+    "9902": { name: "ça aurait fait une super torche, dommage" },
+    "9903": { name: "Pas sûr d'y arriver avec un harpon..." },
+    "9904": { name: "Un assomoir à poisson ? Mais bien sûr." },
+    "9905": { name: "ça serait dommage de la brûler non ?" }
     };
 
 
@@ -408,24 +412,39 @@
     }
 
     const RECIPES = {
-      [keyOf("0002","0004")]: { outputs: ["0005"] },              // Couteau
+      // jour 1
+        [keyOf("0002","0004")]: { outputs: ["0005"] },              // Couteau
       [keyOf("0001","0005")]: { outputs: ["0006"] },              // Fil
       [keyOf("0004","0006")]: { outputs: ["0007"] },              // Début canne
       [keyOf("0003","0005")]: { outputs: ["0008"] },              // Hameçon
       [keyOf("0007","0008")]: { outputs: ["0009","0022"] },              // Canne à pêche
+      [keyOf("0021","0001")]: { outputs: ["9902"] },              // super torche
+      [keyOf("0004","0005")]: { outputs: ["9903"] },              // pas pratique le harpon
+        [keyOf("0007","0002")]: { outputs: ["9904"] },              // pas pratique le harpon
       
+      //jour 2  
       [keyOf("0005","0010")]: { outputs: ["0018"] },              // Corde
       [keyOf("0018","0004")]: { outputs: ["0021"] },              // Manche
       [keyOf("0002","0021")]: { outputs: ["0012"] },              // Hache
+      [keyOf("0006","0014")]: { outputs: ["0016"] },              // toit
       [keyOf("0011","0012")]: { outputs: ["0013","0014"] },       // Bois + Feuilles (exemple multi-output)
       [keyOf("0015","0016")]: { outputs: ["0017"] },              // Cabane
       [keyOf("0013","0018")]: { outputs: ["0015"] },              // Cabane humide
       [keyOf("0002","0002")]: { outputs: ["0009"] },              // Étincelle
       [keyOf("0009","0013")]: { outputs: ["0010"] },              // Feu
-      [keyOf("0005","0011")]: { outputs: ["9901"] },
-      [keyOf("0017","0020")]: { outputs: ["0024"] },
-      
-      // Message trop de temps
+      [keyOf("0005","0011")]: { outputs: ["9901"] },        // autre outil trop lent le couteau
+      [keyOf("0019","0017")]: { outputs: ["9905"] },        // ça serait dommage de la brûler non ?
+      [keyOf("0017","0020")]: { outputs: ["0024"] },        // Au sec
+      // jour 3
+        [keyOf("0001","0006")]: { outputs: ["0026"] },  //voile réparée
+  [keyOf("0013","0026")]: { outputs: ["0027"] },// mat
+  [keyOf("0030","0030")]: { outputs: ["0028"] }, //coque pas étanche
+  [keyOf("0027","0036")]: { outputs: ["0029","0035"] }, // bateau et départ
+  [keyOf("0012","0013")]: { outputs: ["0030"] }, //planche
+  [keyOf("0012","0031")]: { outputs: ["0032"] }, // coco coupée
+  [keyOf("0032","0033")]: { outputs: ["0034"] },//résine
+  [keyOf("0028","0034")]: { outputs: ["0036"] },// coque étanche
+
     };
 
     const els = {
@@ -550,7 +569,7 @@
     }
 
 
-    function setImageWithFallback(imgEl, bases, code) {
+    function setImageWithFallback(imgEl, bases, code, opts = {}) {
       imgEl.onerror = null;
       imgEl.onload = null;
 
@@ -559,15 +578,16 @@
 
       let baseIdx = 0;
       let extIdx = 0;
-
+        const showError = opts.showError === true;
       const tryNext = () => {
         if (imgEl.getAttribute("data-code") !== code) return;
 
         if (baseIdx >= bases.length) {
-          // image absente => message d’erreur (force, car c’est une info utile)
-          setMessage(`Image introuvable pour le code ${code}.`, "bad", { force: true });
-          return;
+            if (typeof opts.onMissing === "function") opts.onMissing();
+            if (showError) setMessage(`Image introuvable pour le code ${code}.`, "bad", { force: true });
+            return;
         }
+
 
         const base = bases[baseIdx];
         if (extIdx >= IMAGE_EXTS.length) {
@@ -616,36 +636,68 @@
       return false;
     }
 
-    function playCraftAnimation(outputIds) {
-      // Nettoie les FX précédents (évite accumulation)
-      els.fxLayer.innerHTML = "";
+    async function playCraftAnimation(outputIds) {
+  // Nettoie les FX précédents
+  els.fxLayer.innerHTML = "";
 
-      const ids = (outputIds || []).slice(0, 3); // limite visuelle
-      const spacing = 140; // px (sera bien sur mobile car taille responsive)
+  const ids = (outputIds || []).slice(0, 3);
+  if (ids.length === 0) return;
 
-      ids.forEach((id, i) => {
-        const fx = document.createElement("div");
-        fx.className = "fxItem";
+  // Helper: essaie de trouver une URL d'image existante (sans message d'erreur)
+  const findFirstExistingImageUrl = (id) => new Promise((resolve) => {
+    const code = String(id);
+    const candidates = [];
 
-        // décalage horizontal si plusieurs outputs
-        const dx = (i - (ids.length - 1) / 2) * (ids.length === 1 ? 0 : spacing);
-        fx.style.setProperty("--dx", `${dx}px`);
+    for (const ext of IMAGE_EXTS) candidates.push(`${ITEM_IMAGE_BASE}${code}.${ext}`);
+    for (const ext of IMAGE_EXTS) candidates.push(`${CARD_IMAGE_BASE}${code}.${ext}`);
 
-        const img = document.createElement("img");
-        img.alt = `Objet ${id}`;
+    let i = 0;
+    const probe = new Image();
 
-        // essaie items/ puis fallback sur cards/ si tu réutilises les mêmes images
-        setImageWithFallback(img, [ITEM_IMAGE_BASE, CARD_IMAGE_BASE], String(id));
+    const tryNext = () => {
+      if (i >= candidates.length) return resolve(null);
+      const url = candidates[i++];
+      probe.onload = () => resolve(url);
+      probe.onerror = tryNext;
+      probe.src = url;
+    };
 
-        fx.appendChild(img);
-        els.fxLayer.appendChild(fx);
+    tryNext();
+  });
 
-        // auto-remove après animation
-        setTimeout(() => fx.remove(), 3200);
-      });
-    }
+  // Précharge toutes les images; garde seulement celles trouvées
+  const resolved = await Promise.all(
+    ids.map(async (id) => ({ id, url: await findFirstExistingImageUrl(id) }))
+  );
 
-    function evaluateCraft(forceMessage) {
+  const present = resolved.filter(x => !!x.url);
+
+  // AUCUNE image => pas d'animation
+  if (present.length === 0) return;
+
+  const spacing = 140;
+
+  present.forEach((x, i) => {
+    const fx = document.createElement("div");
+    fx.className = "fxItem";
+
+    const dx = (i - (present.length - 1) / 2) * (present.length === 1 ? 0 : spacing);
+    fx.style.setProperty("--dx", `${dx}px`);
+
+    const img = document.createElement("img");
+    img.alt = `Objet ${x.id}`;
+    img.src = x.url;
+
+    fx.appendChild(img);
+    els.fxLayer.appendChild(fx);
+
+    // 3s + marge
+    setTimeout(() => fx.remove(), 3200);
+  });
+}
+
+
+    async function evaluateCraft(forceMessage) {
       if (!slot1 || !slot2) return;
 
       const k = keyOf(slot1, slot2);
@@ -658,12 +710,13 @@
       }
 
       // Animation des objets craftés
-      playCraftAnimation(recipe.outputs);
+      await playCraftAnimation(recipe.outputs);
+
 
       // Message succès (reste plus longtemps)
       const outputsLines = recipe.outputs.length === 1
-        ? [`Objet crafté : ${itemLabel(recipe.outputs[0])}`]
-        : ["Objets craftés :", ...recipe.outputs.map(id => `• ${itemLabel(id)}`)];
+        ? [`${itemLabel(recipe.outputs[0])}`]
+        : ["", ...recipe.outputs.map(id => `• ${itemLabel(id)}`)];
 
       if (navigator.vibrate) navigator.vibrate(80);
 

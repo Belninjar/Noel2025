@@ -1,846 +1,1121 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="fr">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>Craft QR</title>
-  <style>
-    :root {
-      --w: 1365;
-      --h: 2048;
-      --font: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,viewport-fit=cover"
+    />
+    <title>Craft QR</title>
+    <style>
+      :root {
+        --w: 1365;
+        --h: 2048;
+        --font: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
 
-      /* Zones (en %) */
-      --cam-left: 29.82%;
-      --cam-top: 24.66%;
-      --cam-width: 40.29%;
-      --cam-height: 18.31%;
+        /* Zones (en %) */
+        --cam-left: 29.82%;
+        --cam-top: 24.66%;
+        --cam-width: 40.29%;
+        --cam-height: 18.31%;
 
-      --slot1-left: 13.76%;
-      --slot1-top: 56.15%;
-      --slot1-width: 17.3%;
-      --slot1-height: 11.52%;
+        --slot1-left: 13.76%;
+        --slot1-top: 56.15%;
+        --slot1-width: 17.3%;
+        --slot1-height: 11.52%;
 
-      --slot2-left: 69.33%;
-      --slot2-top: 56.15%;
-      --slot2-width: 17.3%;
-      --slot2-height: 11.52%;
+        --slot2-left: 69.33%;
+        --slot2-top: 56.15%;
+        --slot2-width: 17.3%;
+        --slot2-height: 11.52%;
 
-      --msg-left: 5.15%;
-      --msg-top: 80.79%;
-      --msg-width: 89.75%;
-      --msg-height: 15.95%;
-    }
+        --msg-left: 5.15%;
+        --msg-top: 80.79%;
+        --msg-width: 89.75%;
+        --msg-height: 15.95%;
+      }
 
-    * { box-sizing: border-box; }
-    html, body { height: 100%; }
-    body {
-      margin: 0;
-      background: #0b0b0b;
-      display: grid;
-      place-items: center;
-      font-family: var(--font);
-      overscroll-behavior: none;
-      touch-action: manipulation;
-    }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        margin: 0;
+        background: #0b0b0b;
+        display: grid;
+        place-items: center;
+        font-family: var(--font);
+        overscroll-behavior: none;
+        touch-action: manipulation;
+      }
 
-    /* Plateau (image de fond) */
-    #board {
-      position: relative;
-      width: min(100vw, calc(100vh * (var(--w) / var(--h))));
-      aspect-ratio: var(--w) / var(--h);
-      background: url("UI.png") center/contain no-repeat;
-      user-select: none;
-      -webkit-user-select: none;
-    }
+      /* Plateau (image de fond) */
+      #board {
+        position: relative;
+        width: min(100vw, calc(100vh * (var(--w) / var(--h))));
+        aspect-ratio: var(--w) / var(--h);
+        background: url("UI.png") center/contain no-repeat;
+        user-select: none;
+        -webkit-user-select: none;
+      }
 
-    /* Zone caméra */
-    #camRegion {
-      position: absolute;
-      left: var(--cam-left);
-      top: var(--cam-top);
-      width: var(--cam-width);
-      height: var(--cam-height);
-      overflow: hidden;
-      border-radius: 18px;
-      background: #000;
-    }
+      /* Zone caméra */
+      #camRegion {
+        position: absolute;
+        left: var(--cam-left);
+        top: var(--cam-top);
+        width: var(--cam-width);
+        height: var(--cam-height);
+        overflow: hidden;
+        border-radius: 18px;
+        background: #000;
+      }
 
-    #video {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      display: block;
-      transform: translateZ(0);
-    }
+      #video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+        transform: translateZ(0);
+      }
 
-    #camOverlay {
-      position: absolute;
-      inset: 0;
-      display: grid;
-      place-items: center; /* FIX: ancien "place-itemsContent" incorrect */
-      padding: 12px;
-      text-align: center;
-      color: rgba(255,255,255,0.92);
-      font-weight: 800;
-      text-shadow: 0 2px 12px rgba(0,0,0,0.9);
-      background: linear-gradient(to bottom, rgba(0,0,0,0.55), rgba(0,0,0,0.15));
-      pointer-events: none;
-      opacity: 1;
-      transition: opacity .2s ease;
-    }
-    #camOverlay.hidden { opacity: 0; }
+      #camOverlay {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center; /* FIX: ancien "place-itemsContent" incorrect */
+        padding: 12px;
+        text-align: center;
+        color: rgba(255, 255, 255, 0.92);
+        font-weight: 800;
+        text-shadow: 0 2px 12px rgba(0, 0, 0, 0.9);
+        background: linear-gradient(
+          to bottom,
+          rgba(0, 0, 0, 0.55),
+          rgba(0, 0, 0, 0.15)
+        );
+        pointer-events: none;
+        opacity: 1;
+        transition: opacity 0.2s ease;
+      }
+      #camOverlay.hidden {
+        opacity: 0;
+      }
 
-    #tinyControls {
-      position: absolute;
-      left: 10px;
-      top: 10px;
-      display: flex;
-      gap: 8px;
-      z-index: 3;
-    }
+      #tinyControls {
+        position: absolute;
+        left: 10px;
+        top: 10px;
+        display: flex;
+        gap: 8px;
+        z-index: 3;
+      }
 
-    .tinyBtn {
-      border: 0;
-      border-radius: 12px;
-      padding: 8px 10px;
-      font-weight: 800;
-      cursor: pointer;
-      background: rgba(255,255,255,0.9);
-      box-shadow: 0 6px 18px rgba(0,0,0,0.25);
-    }
-    .tinyBtn:active { transform: translateY(1px); }
+      .tinyBtn {
+        border: 0;
+        border-radius: 12px;
+        padding: 8px 10px;
+        font-weight: 800;
+        cursor: pointer;
+        background: rgba(255, 255, 255, 0.9);
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+      }
+      .tinyBtn:active {
+        transform: translateY(1px);
+      }
 
-    /* Slots cartes */
-    .slot {
-      position: absolute;
-      overflow: hidden;
-      border-radius: 10px;
-    }
-    #slot1 { left: var(--slot1-left); top: var(--slot1-top); width: var(--slot1-width); height: var(--slot1-height); }
-    #slot2 { left: var(--slot2-left); top: var(--slot2-top); width: var(--slot2-width); height: var(--slot2-height); }
+      /* Slots cartes */
+      .slot {
+        position: absolute;
+        overflow: hidden;
+        border-radius: 10px;
+      }
+      #slot1 {
+        left: var(--slot1-left);
+        top: var(--slot1-top);
+        width: var(--slot1-width);
+        height: var(--slot1-height);
+      }
+      #slot2 {
+        left: var(--slot2-left);
+        top: var(--slot2-top);
+        width: var(--slot2-width);
+        height: var(--slot2-height);
+      }
 
-    .slot img {
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
-      display: none;
-      cursor: pointer;
-      filter: drop-shadow(0 10px 14px rgba(0,0,0,0.35));
-      -webkit-tap-highlight-color: transparent;
-    }
+      .slot img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        display: none;
+        cursor: pointer;
+        filter: drop-shadow(0 10px 14px rgba(0, 0, 0, 0.35));
+        -webkit-tap-highlight-color: transparent;
+      }
 
-    /* ===== TEXTE: transparent + blanc + toujours dans le cadre ===== */
-    #messageBox {
-      position: absolute;
-      left: var(--msg-left);
-      top: var(--msg-top);
-      width: var(--msg-width);
-      height: var(--msg-height);
-      padding: 10px 12px;
+      /* ===== TEXTE: transparent + blanc + toujours dans le cadre ===== */
+      #messageBox {
+        position: absolute;
+        left: var(--msg-left);
+        top: var(--msg-top);
+        width: var(--msg-width);
+        height: var(--msg-height);
+        padding: 10px 12px;
 
-      background: transparent;
-      border: none;
-      box-shadow: none;
+        background: transparent;
+        border: none;
+        box-shadow: none;
 
-      color: #fff;
-      font-weight: 900;
-      line-height: 1.15;
-      text-align: center;
-      white-space: pre-line;
-      overflow: hidden;
+        color: #fff;
+        font-weight: 900;
+        line-height: 1.15;
+        text-align: center;
+        white-space: pre-line;
+        overflow: hidden;
 
-      font-size: clamp(14px, 2.2vw, 30px);
-      text-shadow: 0 2px 10px rgba(0,0,0,0.9);
+        font-size: clamp(14px, 2.2vw, 30px);
+        text-shadow: 0 2px 10px rgba(0, 0, 0, 0.9);
 
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    #messageBox.ok  { text-shadow: 0 2px 10px rgba(0,0,0,0.9), 0 0 14px rgba(60, 200, 120, 0.35); }
-    #messageBox.bad { text-shadow: 0 2px 10px rgba(0,0,0,0.9), 0 0 14px rgba(240, 80, 80, 0.35); }
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      #messageBox.ok {
+        text-shadow: 0 2px 10px rgba(0, 0, 0, 0.9),
+          0 0 14px rgba(60, 200, 120, 0.35);
+      }
+      #messageBox.bad {
+        text-shadow: 0 2px 10px rgba(0, 0, 0, 0.9),
+          0 0 14px rgba(240, 80, 80, 0.35);
+      }
 
-    /* Démarrage caméra via geste utilisateur */
-    #startHitbox {
-      position: absolute;
-      inset: 0;
-      cursor: pointer;
-    }
+      /* Démarrage caméra via geste utilisateur */
+      #startHitbox {
+        position: absolute;
+        inset: 0;
+        cursor: pointer;
+      }
 
-    /* ===== Bouton SCAN discret en bas à droite ===== */
-    #btnScan {
-      position: absolute;
-      right: 3.2%;
-      bottom: 3.0%;
-      width: min(70px, 10vw);
-      aspect-ratio: 1 / 1;
-      border-radius: 999px;
-      border: 2px solid rgba(255, 215, 0, 0.75);
-      background: rgba(0,0,0,0.28);
-      color: rgba(255, 235, 160, 0.95);
-      font-weight: 950;
-      letter-spacing: 0.5px;
-      font-size: clamp(10px, 1.3vw, 14px);
-      box-shadow: 0 10px 18px rgba(0,0,0,0.35);
-      cursor: pointer;
-      -webkit-tap-highlight-color: transparent;
-      z-index: 7;
-    }
-    #btnScan:active { transform: translateY(1px); }
-    #btnScan.active {
-      background: rgba(255, 215, 0, 0.75);
-      border-color: rgba(255, 255, 255, 0.9);
-      color: rgba(30, 18, 0, 0.95);
-      box-shadow: 0 0 0 3px rgba(255,215,0,0.22), 0 10px 18px rgba(0,0,0,0.35);
-    }
+      /* ===== Bouton SCAN discret en bas à droite ===== */
+      #btnScan {
+        position: absolute;
+        right: 3.2%;
+        bottom: 3%;
+        width: min(70px, 10vw);
+        aspect-ratio: 1 / 1;
+        border-radius: 999px;
+        border: 2px solid rgba(255, 215, 0, 0.75);
+        background: rgba(0, 0, 0, 0.28);
+        color: rgba(255, 235, 160, 0.95);
+        font-weight: 950;
+        letter-spacing: 0.5px;
+        font-size: clamp(10px, 1.3vw, 14px);
+        box-shadow: 0 10px 18px rgba(0, 0, 0, 0.35);
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+        z-index: 7;
+      }
+      #btnScan:active {
+        transform: translateY(1px);
+      }
+      #btnScan.active {
+        background: rgba(255, 215, 0, 0.75);
+        border-color: rgba(255, 255, 255, 0.9);
+        color: rgba(30, 18, 0, 0.95);
+        box-shadow: 0 0 0 3px rgba(255, 215, 0, 0.22),
+          0 10px 18px rgba(0, 0, 0, 0.35);
+      }
 
-    /* ===== Animation craft (halo + étincelles) ===== */
-    #fxLayer {
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    z-index: 6;
-    }
+      /* ===== Animation craft (halo + étincelles) ===== */
+      #fxLayer {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        z-index: 6;
+      }
 
-    .fxItem {
-    position: absolute;
-    left: 50%;
-    top: 46%;
-    width: min(180px, 22vw);
-    aspect-ratio: 1 / 1;
-    transform: translate(calc(-50% + var(--dx, 0px)), -50%) scale(0.75);
-    opacity: 0;
-    filter: drop-shadow(0 18px 28px rgba(0,0,0,0.45));
-    animation: fxPop 3000ms ease-out forwards;
-    }
+      .fxItem {
+        position: absolute;
+        left: 50%;
+        top: 46%;
+        width: min(180px, 22vw);
+        aspect-ratio: 1 / 1;
+        transform: translate(calc(-50% + var(--dx, 0px)), -50%) scale(0.75);
+        opacity: 0;
+        filter: drop-shadow(0 18px 28px rgba(0, 0, 0, 0.45));
+        animation: fxPop 3000ms ease-out forwards;
+      }
 
-    .fxItem img {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-    display: block;
-    position: relative;
-    z-index: 2;
-    }
+      .fxItem img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        display: block;
+        position: relative;
+        z-index: 2;
+      }
 
-    /* Anneau + rayons colorés */
-    .fxItem::before {
-    content: "";
-    position: absolute;
-    inset: -55%;
-    z-index: 0;
-    opacity: 0;
-    transform: scale(0.25);
-    filter: blur(1px);
+      /* Anneau + rayons colorés */
+      .fxItem::before {
+        content: "";
+        position: absolute;
+        inset: -55%;
+        z-index: 0;
+        opacity: 0;
+        transform: scale(0.25);
+        filter: blur(1px);
 
-    background:
-        conic-gradient(
-        from 0deg,
-        rgba(255,  60, 120, 0.0),
-        rgba(255,  60, 120, 0.9),
-        rgba( 60, 220, 255, 0.9),
-        rgba(255, 235,  80, 0.9),
-        rgba(160,  90, 255, 0.9),
-        rgba( 80, 255, 140, 0.9),
-        rgba(255, 140,  60, 0.9),
-        rgba(255,  60, 120, 0.9),
-        rgba(255,  60, 120, 0.0)
+        background: conic-gradient(
+          from 0deg,
+          rgba(255, 60, 120, 0),
+          rgba(255, 60, 120, 0.9),
+          rgba(60, 220, 255, 0.9),
+          rgba(255, 235, 80, 0.9),
+          rgba(160, 90, 255, 0.9),
+          rgba(80, 255, 140, 0.9),
+          rgba(255, 140, 60, 0.9),
+          rgba(255, 60, 120, 0.9),
+          rgba(255, 60, 120, 0)
         );
 
-    /* masque pour créer un anneau */
-    -webkit-mask: radial-gradient(circle, transparent 0 58%, #000 62% 100%);
-    mask: radial-gradient(circle, transparent 0 58%, #000 62% 100%);
+        /* masque pour créer un anneau */
+        -webkit-mask: radial-gradient(circle, transparent 0 58%, #000 62% 100%);
+        mask: radial-gradient(circle, transparent 0 58%, #000 62% 100%);
 
-    mix-blend-mode: screen;
-    animation: fxRing 3000ms ease-out forwards;
-    }
+        mix-blend-mode: screen;
+        animation: fxRing 3000ms ease-out forwards;
+      }
 
-    /* Particules (feu d'artifice) */
-    .fxItem::after {
-    content: "";
-    position: absolute;
-    inset: -60%;
-    z-index: 1;
+      /* Particules (feu d'artifice) */
+      .fxItem::after {
+        content: "";
+        position: absolute;
+        inset: -60%;
+        z-index: 1;
 
-    opacity: 0;
-    transform: scale(0.12) rotate(0deg);
-    filter: blur(0.2px);
-    mix-blend-mode: screen;
+        opacity: 0;
+        transform: scale(0.12) rotate(0deg);
+        filter: blur(0.2px);
+        mix-blend-mode: screen;
 
-    background:
-        radial-gradient(circle, rgba(255,  60, 120, .95) 0 2px, rgba(0,0,0,0) 3px) 50%  5%/8px 8px no-repeat,
-        radial-gradient(circle, rgba( 60, 220, 255, .95) 0 2px, rgba(0,0,0,0) 3px) 80% 20%/8px 8px no-repeat,
-        radial-gradient(circle, rgba(255, 235,  80, .95) 0 2px, rgba(0,0,0,0) 3px) 92% 50%/8px 8px no-repeat,
-        radial-gradient(circle, rgba(160,  90, 255, .95) 0 2px, rgba(0,0,0,0) 3px) 80% 80%/8px 8px no-repeat,
-        radial-gradient(circle, rgba( 80, 255, 140, .95) 0 2px, rgba(0,0,0,0) 3px) 50% 95%/8px 8px no-repeat,
-        radial-gradient(circle, rgba(255, 140,  60, .95) 0 2px, rgba(0,0,0,0) 3px) 20% 80%/8px 8px no-repeat,
-        radial-gradient(circle, rgba(255,  60, 120, .95) 0 2px, rgba(0,0,0,0) 3px)  8% 50%/8px 8px no-repeat,
-        radial-gradient(circle, rgba( 60, 220, 255, .95) 0 2px, rgba(0,0,0,0) 3px) 20% 20%/8px 8px no-repeat,
+        background: radial-gradient(
+              circle,
+              rgba(255, 60, 120, 0.95) 0 2px,
+              rgba(0, 0, 0, 0) 3px
+            )
+            50% 5%/8px 8px no-repeat,
+          radial-gradient(
+              circle,
+              rgba(60, 220, 255, 0.95) 0 2px,
+              rgba(0, 0, 0, 0) 3px
+            )
+            80% 20%/8px 8px no-repeat,
+          radial-gradient(
+              circle,
+              rgba(255, 235, 80, 0.95) 0 2px,
+              rgba(0, 0, 0, 0) 3px
+            )
+            92% 50%/8px 8px no-repeat,
+          radial-gradient(
+              circle,
+              rgba(160, 90, 255, 0.95) 0 2px,
+              rgba(0, 0, 0, 0) 3px
+            )
+            80% 80%/8px 8px no-repeat,
+          radial-gradient(
+              circle,
+              rgba(80, 255, 140, 0.95) 0 2px,
+              rgba(0, 0, 0, 0) 3px
+            )
+            50% 95%/8px 8px no-repeat,
+          radial-gradient(
+              circle,
+              rgba(255, 140, 60, 0.95) 0 2px,
+              rgba(0, 0, 0, 0) 3px
+            )
+            20% 80%/8px 8px no-repeat,
+          radial-gradient(
+              circle,
+              rgba(255, 60, 120, 0.95) 0 2px,
+              rgba(0, 0, 0, 0) 3px
+            )
+            8% 50%/8px 8px no-repeat,
+          radial-gradient(
+              circle,
+              rgba(60, 220, 255, 0.95) 0 2px,
+              rgba(0, 0, 0, 0) 3px
+            )
+            20% 20%/8px 8px no-repeat,
+          radial-gradient(
+              circle,
+              rgba(255, 255, 255, 0.95) 0 1.6px,
+              rgba(0, 0, 0, 0) 3px
+            )
+            62% 14%/7px 7px no-repeat,
+          radial-gradient(
+              circle,
+              rgba(255, 255, 255, 0.85) 0 1.4px,
+              rgba(0, 0, 0, 0) 3px
+            )
+            88% 36%/7px 7px no-repeat,
+          radial-gradient(
+              circle,
+              rgba(255, 255, 255, 0.8) 0 1.3px,
+              rgba(0, 0, 0, 0) 3px
+            )
+            86% 68%/7px 7px no-repeat,
+          radial-gradient(
+              circle,
+              rgba(255, 255, 255, 0.75) 0 1.2px,
+              rgba(0, 0, 0, 0) 3px
+            )
+            62% 88%/7px 7px no-repeat,
+          radial-gradient(
+              circle,
+              rgba(255, 255, 255, 0.7) 0 1.2px,
+              rgba(0, 0, 0, 0) 3px
+            )
+            38% 88%/7px 7px no-repeat,
+          radial-gradient(
+              circle,
+              rgba(255, 255, 255, 0.75) 0 1.2px,
+              rgba(0, 0, 0, 0) 3px
+            )
+            14% 68%/7px 7px no-repeat,
+          radial-gradient(
+              circle,
+              rgba(255, 255, 255, 0.8) 0 1.3px,
+              rgba(0, 0, 0, 0) 3px
+            )
+            12% 36%/7px 7px no-repeat,
+          radial-gradient(
+              circle,
+              rgba(255, 255, 255, 0.85) 0 1.4px,
+              rgba(0, 0, 0, 0) 3px
+            )
+            38% 14%/7px 7px no-repeat;
 
-        radial-gradient(circle, rgba(255, 255, 255, .95) 0 1.6px, rgba(0,0,0,0) 3px) 62% 14%/7px 7px no-repeat,
-        radial-gradient(circle, rgba(255, 255, 255, .85) 0 1.4px, rgba(0,0,0,0) 3px) 88% 36%/7px 7px no-repeat,
-        radial-gradient(circle, rgba(255, 255, 255, .80) 0 1.3px, rgba(0,0,0,0) 3px) 86% 68%/7px 7px no-repeat,
-        radial-gradient(circle, rgba(255, 255, 255, .75) 0 1.2px, rgba(0,0,0,0) 3px) 62% 88%/7px 7px no-repeat,
-        radial-gradient(circle, rgba(255, 255, 255, .70) 0 1.2px, rgba(0,0,0,0) 3px) 38% 88%/7px 7px no-repeat,
-        radial-gradient(circle, rgba(255, 255, 255, .75) 0 1.2px, rgba(0,0,0,0) 3px) 14% 68%/7px 7px no-repeat,
-        radial-gradient(circle, rgba(255, 255, 255, .80) 0 1.3px, rgba(0,0,0,0) 3px) 12% 36%/7px 7px no-repeat,
-        radial-gradient(circle, rgba(255, 255, 255, .85) 0 1.4px, rgba(0,0,0,0) 3px) 38% 14%/7px 7px no-repeat;
+        animation: fxFirework 3000ms ease-out forwards;
+      }
 
-    animation: fxFirework 3000ms ease-out forwards;
-    }
+      /* L'image reste plus longtemps (≈3s total) */
+      @keyframes fxPop {
+        0% {
+          opacity: 0;
+          transform: translate(calc(-50% + var(--dx, 0px)), -50%) scale(0.7);
+        }
+        12% {
+          opacity: 1;
+          transform: translate(calc(-50% + var(--dx, 0px)), -50%) scale(1.03);
+        }
+        22% {
+          opacity: 1;
+          transform: translate(calc(-50% + var(--dx, 0px)), -51%) scale(1);
+        }
+        80% {
+          opacity: 1;
+          transform: translate(calc(-50% + var(--dx, 0px)), -56%) scale(1);
+        }
+        100% {
+          opacity: 0;
+          transform: translate(calc(-50% + var(--dx, 0px)), -70%) scale(0.98);
+        }
+      }
 
-    /* L'image reste plus longtemps (≈3s total) */
-    @keyframes fxPop {
-    0%   { opacity: 0; transform: translate(calc(-50% + var(--dx, 0px)), -50%) scale(0.70); }
-    12%  { opacity: 1; transform: translate(calc(-50% + var(--dx, 0px)), -50%) scale(1.03); }
-    22%  { opacity: 1; transform: translate(calc(-50% + var(--dx, 0px)), -51%) scale(1.00); }
-    80%  { opacity: 1; transform: translate(calc(-50% + var(--dx, 0px)), -56%) scale(1.00); }
-    100% { opacity: 0; transform: translate(calc(-50% + var(--dx, 0px)), -70%) scale(0.98); }
-    }
+      @keyframes fxRing {
+        0% {
+          opacity: 0;
+          transform: scale(0.18) rotate(0deg);
+        }
+        14% {
+          opacity: 0.95;
+          transform: scale(0.95) rotate(25deg);
+        }
+        55% {
+          opacity: 0.85;
+          transform: scale(1.08) rotate(90deg);
+        }
+        85% {
+          opacity: 0.5;
+          transform: scale(1.15) rotate(140deg);
+        }
+        100% {
+          opacity: 0;
+          transform: scale(1.22) rotate(180deg);
+        }
+      }
 
-    @keyframes fxRing {
-    0%   { opacity: 0.0; transform: scale(0.18) rotate(0deg); }
-    14%  { opacity: 0.95; transform: scale(0.95) rotate(25deg); }
-    55%  { opacity: 0.85; transform: scale(1.08) rotate(90deg); }
-    85%  { opacity: 0.50; transform: scale(1.15) rotate(140deg); }
-    100% { opacity: 0.0; transform: scale(1.22) rotate(180deg); }
-    }
+      @keyframes fxFirework {
+        0% {
+          opacity: 0;
+          transform: scale(0.1) rotate(0deg);
+        }
+        16% {
+          opacity: 1;
+          transform: scale(0.75) rotate(6deg);
+        }
+        50% {
+          opacity: 1;
+          transform: scale(1.12) rotate(14deg);
+        }
+        82% {
+          opacity: 0.7;
+          transform: scale(1.25) rotate(22deg);
+        }
+        100% {
+          opacity: 0;
+          transform: scale(1.35) rotate(28deg);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="board">
+      <div id="camRegion">
+        <video id="video" playsinline muted></video>
 
-    @keyframes fxFirework {
-    0%   { opacity: 0; transform: scale(0.10) rotate(0deg); }
-    16%  { opacity: 1; transform: scale(0.75) rotate(6deg); }
-    50%  { opacity: 1; transform: scale(1.12) rotate(14deg); }
-    82%  { opacity: 0.70; transform: scale(1.25) rotate(22deg); }
-    100% { opacity: 0; transform: scale(1.35) rotate(28deg); }
-    }
+        <div id="tinyControls">
+          <button
+            class="tinyBtn"
+            id="btnStop"
+            title="Arrêter la caméra"
+            style="display: none"
+          >
+            ⏹
+          </button>
+          <button class="tinyBtn" id="btnReset" title="Retirer les 2 cartes">
+            ↺
+          </button>
+        </div>
 
-  </style>
-</head>
-<body>
-  <div id="board">
-    <div id="camRegion">
-      <video id="video" playsinline muted></video>
+        <div id="camOverlay">
+          Touchez ici pour activer la caméra<br />
+          puis maintenez SCAN pour lire une carte
+        </div>
 
-      <div id="tinyControls">
-        <button class="tinyBtn" id="btnStop" title="Arrêter la caméra" style="display:none;">⏹</button>
-        <button class="tinyBtn" id="btnReset" title="Retirer les 2 cartes">↺</button>
+        <div id="startHitbox" aria-label="Démarrer la caméra"></div>
       </div>
 
-      <div id="camOverlay">
-        Touchez ici pour activer la caméra<br/>
-        puis maintenez SCAN pour lire une carte
-      </div>
+      <div id="slot1" class="slot"><img id="img1" alt="Carte 1" /></div>
+      <div id="slot2" class="slot"><img id="img2" alt="Carte 2" /></div>
 
-      <div id="startHitbox" aria-label="Démarrer la caméra"></div>
+      <div id="messageBox">Prêt. Active la caméra, puis maintiens SCAN.</div>
+
+      <!-- Layer d'animation -->
+      <div id="fxLayer" aria-hidden="true"></div>
+
+      <!-- Bouton scan -->
+      <button id="btnScan" aria-label="Scanner" title="Maintenir pour scanner">
+        SCAN
+      </button>
     </div>
 
-    <div id="slot1" class="slot"><img id="img1" alt="Carte 1" /></div>
-    <div id="slot2" class="slot"><img id="img2" alt="Carte 2" /></div>
+    <!-- QR-SCANNER (UMD) + Worker -->
+    <script src="https://unpkg.com/qr-scanner@1.4.2/qr-scanner.umd.min.js"></script>
+    <script>
+      QrScanner.WORKER_PATH =
+        "https://unpkg.com/qr-scanner@1.4.2/qr-scanner-worker.min.js";
+    </script>
 
-    <div id="messageBox">Prêt. Active la caméra, puis maintiens SCAN.</div>
+    <script>
+      /**
+       * ===== CONFIG FICHIERS =====
+       * UI.png à côté du fichier.
+       * Images cartes (les QR scannés) :   /cards/0001.png etc.
+       * Images objets craftés (outputs) :  /items/1001.png etc. (IDs définis dans RECIPES)
+       */
+      const CARD_IMAGE_BASE = "cards/";
+      const ITEM_IMAGE_BASE = "cards/";
+      const IMAGE_EXTS = ["png", "jpg", "jpeg", "webp"];
 
-    <!-- Layer d'animation -->
-    <div id="fxLayer" aria-hidden="true"></div>
+      /**
+       * ===== RECETTES =====
+       * Nouvelle logique:
+       *   [keyOf("0002","0004")]: { outputs: ["1001"] }
+       * Plusieurs objets craftés:
+       *   { outputs: ["1002","1003"] }
+       *
+       * Optionnel: table ITEMS pour avoir des noms affichés.
+       */
+      const ITEMS = {
+        "0001": { name: "Voile" },
+        "0002": { name: "Pierre" },
+        "0003": { name: "Os" },
+        "0004": { name: "Bâton" },
+        "0005": { name: "Couteau" },
+        "0006": { name: "Fil" },
+        "0007": { name: "Canne à..." },
+        "0008": { name: "Hameçon" },
+        "0009": { name: "Canne à pêche" },
+        "0010": { name: "Lierre" },
+        "0011": { name: "Cocotier" },
+        "0012": { name: "Hache" },
+        "0013": { name: "Bois" },
+        "0014": { name: "Feuilles" },
+        "0015": { name: "Cabane humide" },
+        "0016": { name: "Toit" },
+        "0017": { name: "Cabane" },
+        "0018": { name: "Corde" },
+        "0019": { name: "Étincelle" },
+        "0020": { name: "Feu" },
+        "0021": { name: "Manche" },
+        "0022": { name: "Poisson" },
+        "0023": { name: "Tempête" },
+        "0024": { name: "Au sec" },
+        9901: { name: "A ce rythme là je vais être trempé, il me faut un autre outil !", },
+        9902: { name: "ça aurait fait une super torche, dommage" },
+        9903: { name: "Pas sûr d'y arriver avec un harpon..." },
+        9904: { name: "Un assomoir à poisson ? Mais bien sûr." },
+        9905: { name: "ça serait dommage de la brûler non ?" },
+        9906: { name: "Heu là je vais faire des miettes, il faudrait plutôt le tailler" },
+        9907: { name: "On peut taper sur l'arbre, mais il vaudrait mieux le couper à la mode bûcheron" },
+        9908: { name: "Avec la voile on aura pas un toit étanche" },
+        9909: { name: "Il faut attacher les feuilles sinon ça tiendra jamais !" },
+        9910: { name: "La corde est trop épaisse pour les attacher..." },
+        9911: { name: "Je sais que les temps sont durs mais ne vous pendez pas !" },
+        9912: { name: "Ouais à la limite ça fait de la musique" },
 
-    <!-- Bouton scan -->
-    <button id="btnScan" aria-label="Scanner" title="Maintenir pour scanner">SCAN</button>
-  </div>
+        "0026": { name: "Voile réparée" },
+        "0027": { name: "Mat" },
+        "0028": { name: "Coque pas étanche" },
+        "0029": { name: "Bateau" },
+        "0030": { name: "Planche" },
+        "0031": { name: "Noix de coco" },
+        "0032": { name: "Récipients" },
+        "0033": { name: "Arbre résineux" },
+        "0034": { name: "Résine" },
+        "0035": { name: "Fin" },
+        "0036": { name: "Coque étanche" },
+      };
 
-  <!-- QR-SCANNER (UMD) + Worker -->
-  <script src="https://unpkg.com/qr-scanner@1.4.2/qr-scanner.umd.min.js"></script>
-  <script>
-    QrScanner.WORKER_PATH = "https://unpkg.com/qr-scanner@1.4.2/qr-scanner-worker.min.js";
-  </script>
-
-  <script>
-    /**
-     * ===== CONFIG FICHIERS =====
-     * UI.png à côté du fichier.
-     * Images cartes (les QR scannés) :   /cards/0001.png etc.
-     * Images objets craftés (outputs) :  /items/1001.png etc. (IDs définis dans RECIPES)
-     */
-    const CARD_IMAGE_BASE = "cards/";
-    const ITEM_IMAGE_BASE = "cards/";
-    const IMAGE_EXTS = ["png", "jpg", "jpeg", "webp"];
-
-    /**
-     * ===== RECETTES =====
-     * Nouvelle logique:
-     *   [keyOf("0002","0004")]: { outputs: ["1001"] }
-     * Plusieurs objets craftés:
-     *   { outputs: ["1002","1003"] }
-     *
-     * Optionnel: table ITEMS pour avoir des noms affichés.
-     */
-    const ITEMS = {
-    "0001": { name: "Voile" },
-    "0002": { name: "Pierre" },
-    "0003": { name: "Os" },
-    "0004": { name: "Bâton" },
-    "0005": { name: "Couteau" },
-    "0006": { name: "Fil" },
-    "0007": { name: "Canne à..." },
-    "0008": { name: "Hameçon" },
-    "0009": { name: "Canne à pêche" },
-    "0010": { name: "Lierre" },
-    "0011": { name: "Cocotier" },
-    "0012": { name: "Hache" },
-    "0013": { name: "Bois" },
-    "0014": { name: "Feuilles" },
-    "0015": { name: "Cabane humide" },
-    "0016": { name: "Toit" },
-    "0017": { name: "Cabane" },
-    "0018": { name: "Corde" },
-    "0019": { name: "Étincelle" },
-    "0020": { name: "Feu" },
-    "0021": { name: "Manche" },
-    "0022": { name: "Poisson" },
-    "0023": { name: "Tempête" },
-    "0024": { name: "Au sec" },
-    "9901": { name: "A ce rythme là je vais être trempé, il me faut un autre outil !" },
-    "9902": { name: "ça aurait fait une super torche, dommage" },
-    "9903": { name: "Pas sûr d'y arriver avec un harpon..." },
-    "9904": { name: "Un assomoir à poisson ? Mais bien sûr." },
-    "9905": { name: "ça serait dommage de la brûler non ?" }
-    };
-
-
-    function keyOf(a, b) {
-      const A = String(a).trim();
-      const B = String(b).trim();
-      return [A, B].sort().join("|");
-    }
-
-    const RECIPES = {
-      // jour 1
-        [keyOf("0002","0004")]: { outputs: ["0005"] },              // Couteau
-      [keyOf("0001","0005")]: { outputs: ["0006"] },              // Fil
-      [keyOf("0004","0006")]: { outputs: ["0007"] },              // Début canne
-      [keyOf("0003","0005")]: { outputs: ["0008"] },              // Hameçon
-      [keyOf("0007","0008")]: { outputs: ["0009","0022"] },              // Canne à pêche
-      [keyOf("0021","0001")]: { outputs: ["9902"] },              // super torche
-      [keyOf("0004","0005")]: { outputs: ["9903"] },              // pas pratique le harpon
-        [keyOf("0007","0002")]: { outputs: ["9904"] },              // pas pratique le harpon
-      
-      //jour 2  
-      [keyOf("0005","0010")]: { outputs: ["0018"] },              // Corde
-      [keyOf("0018","0004")]: { outputs: ["0021"] },              // Manche
-      [keyOf("0002","0021")]: { outputs: ["0012"] },              // Hache
-      [keyOf("0006","0014")]: { outputs: ["0016"] },              // toit
-      [keyOf("0011","0012")]: { outputs: ["0013","0014"] },       // Bois + Feuilles (exemple multi-output)
-      [keyOf("0015","0016")]: { outputs: ["0017"] },              // Cabane
-      [keyOf("0013","0018")]: { outputs: ["0015"] },              // Cabane humide
-      [keyOf("0002","0002")]: { outputs: ["0009"] },              // Étincelle
-      [keyOf("0009","0013")]: { outputs: ["0010"] },              // Feu
-      [keyOf("0005","0011")]: { outputs: ["9901"] },        // autre outil trop lent le couteau
-      [keyOf("0019","0017")]: { outputs: ["9905"] },        // ça serait dommage de la brûler non ?
-      [keyOf("0017","0020")]: { outputs: ["0024"] },        // Au sec
-      // jour 3
-        [keyOf("0001","0006")]: { outputs: ["0026"] },  //voile réparée
-  [keyOf("0013","0026")]: { outputs: ["0027"] },// mat
-  [keyOf("0030","0030")]: { outputs: ["0028"] }, //coque pas étanche
-  [keyOf("0027","0036")]: { outputs: ["0029","0035"] }, // bateau et départ
-  [keyOf("0012","0013")]: { outputs: ["0030"] }, //planche
-  [keyOf("0012","0031")]: { outputs: ["0032"] }, // coco coupée
-  [keyOf("0032","0033")]: { outputs: ["0034"] },//résine
-  [keyOf("0028","0034")]: { outputs: ["0036"] },// coque étanche
-
-    };
-
-    const els = {
-      startHitbox: document.getElementById("startHitbox"),
-      camOverlay: document.getElementById("camOverlay"),
-      btnStop: document.getElementById("btnStop"),
-      btnReset: document.getElementById("btnReset"),
-      btnScan: document.getElementById("btnScan"),
-      video: document.getElementById("video"),
-      msg: document.getElementById("messageBox"),
-      img1: document.getElementById("img1"),
-      img2: document.getElementById("img2"),
-      fxLayer: document.getElementById("fxLayer"),
-    };
-
-    let qrScanner = null;
-    let slot1 = null;
-    let slot2 = null;
-
-    // Anti spam scan (évite déclenchement multiple)
-    const COOLDOWN_MS = 800;
-    const lastSeen = new Map();
-
-    // 1x1 transparent (évite erreurs réseau quand on “vide” une image)
-    const BLANK_IMG = "data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=";
-
-    // Scan uniquement pendant appui bouton
-    let scanArmed = false;
-    let scanConsumed = false;
-
-    // Message hold (succès reste plus longtemps)
-    const SUCCESS_HOLD_MS = 6000;
-    let holdUntil = 0;
-
-    function fitMessageText() {
-      const el = els.msg;
-      el.style.fontSize = "";
-      const computed = getComputedStyle(el);
-      let size = parseFloat(computed.fontSize) || 18;
-      const min = 12;
-      while (el.scrollHeight > el.clientHeight && size > min) {
-        size -= 1;
-        el.style.fontSize = size + "px";
-      }
-    }
-
-    function setMessage(text, kind = "", opts = {}) {
-      const now = Date.now();
-
-      // Si un succès est en "hold", on ignore les messages non-forcés
-      if (!opts.force && now < holdUntil) return;
-
-      els.msg.textContent = text;
-      els.msg.classList.remove("ok", "bad");
-      if (kind) els.msg.classList.add(kind);
-
-      if (typeof opts.holdMs === "number") {
-        holdUntil = now + opts.holdMs;
-      } else if (opts.force) {
-        // une action utilisateur ou une erreur peut casser le hold
-        holdUntil = 0;
+      function keyOf(a, b) {
+        const A = String(a).trim();
+        const B = String(b).trim();
+        return [A, B].sort().join("|");
       }
 
-      requestAnimationFrame(fitMessageText);
-    }
+      const RECIPES = {
+        // jour 1
+        [keyOf("0002", "0004")]: { outputs: ["0005"] }, // Couteau
+        [keyOf("0001", "0005")]: { outputs: ["0006"] }, // Fil
+        [keyOf("0004", "0006")]: { outputs: ["0007"] }, // Début canne
+        [keyOf("0003", "0005")]: { outputs: ["0008"] }, // Hameçon
+        [keyOf("0007", "0008")]: { outputs: ["0009", "0022"] }, // Canne à pêche
+        [keyOf("0021", "0001")]: { outputs: ["9902"] }, // super torche
+        [keyOf("0004", "0005")]: { outputs: ["9903"] }, // pas pratique le harpon
+        [keyOf("0007", "0002")]: { outputs: ["9904"] }, // pas pratique l'assomoir'
+        [keyOf("0003", "0002")]: { outputs: ["9906"] }, // pas des miettes d'os
+        [keyOf("0003", "0004")]: { outputs: ["9912"] }, // tape sur des os
+        //jour 2
+        [keyOf("0005", "0010")]: { outputs: ["0018"] }, // Corde
+        [keyOf("0018", "0004")]: { outputs: ["0021"] }, // Manche
+        [keyOf("0002", "0021")]: { outputs: ["0012"] }, // Hache
+        [keyOf("0006", "0014")]: { outputs: ["0016"] }, // toit
+        [keyOf("0011", "0012")]: { outputs: ["0013", "0014"] }, // Bois + Feuilles (exemple multi-output)
+        [keyOf("0015", "0016")]: { outputs: ["0017"] }, // Cabane
+        [keyOf("0013", "0018")]: { outputs: ["0015"] }, // Cabane humide
+        [keyOf("0002", "0002")]: { outputs: ["0019"] }, // Étincelle
+        [keyOf("0004", "0013")]: { outputs: ["0020"] }, // feu
+        [keyOf("0019", "0013")]: { outputs: ["0020"] }, // feu
+        [keyOf("0005", "0011")]: { outputs: ["9901"] }, // autre outil trop lent le couteau
+        [keyOf("0019", "0017")]: { outputs: ["9905"] }, // ça serait dommage de la brûler non ?
+        [keyOf("0002", "0011")]: { outputs: ["9907"] }, // tape sur l'arbre
+        [keyOf("0001", "0013")]: { outputs: ["9908"] }, // voile pas pour le toit
+        [keyOf("0014", "0016")]: { outputs: ["9909"] }, // feuille tiennent pas toutes seules
+        [keyOf("0014", "0018")]: { outputs: ["9910"] }, // corde trop épaisse pour feuilles
+        [keyOf("0011", "0018")]: { outputs: ["9911"] }, // Ne vous pendez pas !
+        [keyOf("0017", "0020")]: { outputs: ["0024"] }, // Au sec
+        // jour 3
+        [keyOf("0001", "0006")]: { outputs: ["0026"] }, //voile réparée
+        [keyOf("0013", "0026")]: { outputs: ["0027"] }, // mat
+        [keyOf("0030", "0030")]: { outputs: ["0028"] }, //coque pas étanche
+        [keyOf("0027", "0036")]: { outputs: ["0029", "0035"] }, // bateau et départ
+        [keyOf("0012", "0013")]: { outputs: ["0030"] }, //planche
+        [keyOf("0012", "0031")]: { outputs: ["0032"] }, // coco coupée
+        [keyOf("0032", "0033")]: { outputs: ["0034"] }, //résine
+        [keyOf("0028", "0034")]: { outputs: ["0036"] }, // coque étanche
+      };
 
-    function normalizeCode(raw) {
-      const s = String(raw ?? "").trim();
-      const m = s.match(/\b\d{4}\b/);
-      return (m ? m[0] : s).trim();
-    }
+      const els = {
+        startHitbox: document.getElementById("startHitbox"),
+        camOverlay: document.getElementById("camOverlay"),
+        btnStop: document.getElementById("btnStop"),
+        btnReset: document.getElementById("btnReset"),
+        btnScan: document.getElementById("btnScan"),
+        video: document.getElementById("video"),
+        msg: document.getElementById("messageBox"),
+        img1: document.getElementById("img1"),
+        img2: document.getElementById("img2"),
+        fxLayer: document.getElementById("fxLayer"),
+      };
 
-    function itemLabel(id) {
-      const key = String(id);
-      return ITEMS[key]?.name || key;
-    }
+      let qrScanner = null;
+      let slot1 = null;
+      let slot2 = null;
 
-    function clearSlot(n) {
-      const imgEl = (n === 1) ? els.img1 : els.img2;
-      imgEl.onerror = null;
-      imgEl.onload = null;
+      // Anti spam scan (évite déclenchement multiple)
+      const COOLDOWN_MS = 800;
+      const lastSeen = new Map();
 
-      if (n === 1) slot1 = null; else slot2 = null;
+      // 1x1 transparent (évite erreurs réseau quand on “vide” une image)
+      const BLANK_IMG =
+        "data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=";
 
-      imgEl.removeAttribute("data-code");
-      imgEl.style.display = "none";
-      imgEl.src = BLANK_IMG;
+      // Scan uniquement pendant appui bouton
+      let scanArmed = false;
+      let scanConsumed = false;
 
-      // action utilisateur => force (et casse le hold succès)
-      if (!slot1 && !slot2) {
-        setMessage("Prêt. Maintiens SCAN pour lire une carte.", "", { force: true });
-      } else if (slot1 && !slot2) {
-        setMessage("Carte 1 en place.\nMaintiens SCAN pour lire la deuxième carte.", "", { force: true });
-      } else if (!slot1 && slot2) {
-        setMessage("Carte 2 en place.\nMaintiens SCAN pour lire la première carte.", "", { force: true });
-      } else {
-        evaluateCraft(true);
+      // Message hold (succès reste plus longtemps)
+      const SUCCESS_HOLD_MS = 6000;
+      let holdUntil = 0;
+
+      function fitMessageText() {
+        const el = els.msg;
+        el.style.fontSize = "";
+        const computed = getComputedStyle(el);
+        let size = parseFloat(computed.fontSize) || 18;
+        const min = 12;
+        while (el.scrollHeight > el.clientHeight && size > min) {
+          size -= 1;
+          el.style.fontSize = size + "px";
+        }
       }
-    }
 
-    function clearBoth() {
-      clearSlot(1);
-      clearSlot(2);
-    }
+      function setMessage(text, kind = "", opts = {}) {
+        const now = Date.now();
 
-    function clearSlotSilent(n) {
-        const imgEl = (n === 1) ? els.img1 : els.img2;
+        // Si un succès est en "hold", on ignore les messages non-forcés
+        if (!opts.force && now < holdUntil) return;
 
+        els.msg.textContent = text;
+        els.msg.classList.remove("ok", "bad");
+        if (kind) els.msg.classList.add(kind);
+
+        if (typeof opts.holdMs === "number") {
+          holdUntil = now + opts.holdMs;
+        } else if (opts.force) {
+          // une action utilisateur ou une erreur peut casser le hold
+          holdUntil = 0;
+        }
+
+        requestAnimationFrame(fitMessageText);
+      }
+
+      function normalizeCode(raw) {
+        const s = String(raw ?? "").trim();
+        const m = s.match(/\b\d{4}\b/);
+        return (m ? m[0] : s).trim();
+      }
+
+      function itemLabel(id) {
+        const key = String(id);
+        return ITEMS[key]?.name || key;
+      }
+
+      function clearSlot(n) {
+        const imgEl = n === 1 ? els.img1 : els.img2;
         imgEl.onerror = null;
         imgEl.onload = null;
 
-        if (n === 1) slot1 = null; else slot2 = null;
+        if (n === 1) slot1 = null;
+        else slot2 = null;
 
         imgEl.removeAttribute("data-code");
         imgEl.style.display = "none";
         imgEl.src = BLANK_IMG;
-        }
 
-        function clearBothSilent() {
+        // action utilisateur => force (et casse le hold succès)
+        if (!slot1 && !slot2) {
+          setMessage("Prêt. Maintiens SCAN pour lire une carte.", "", {
+            force: true,
+          });
+        } else if (slot1 && !slot2) {
+          setMessage(
+            "Carte 1 en place.\nMaintiens SCAN pour lire la deuxième carte.",
+            "",
+            { force: true }
+          );
+        } else if (!slot1 && slot2) {
+          setMessage(
+            "Carte 2 en place.\nMaintiens SCAN pour lire la première carte.",
+            "",
+            { force: true }
+          );
+        } else {
+          evaluateCraft(true);
+        }
+      }
+
+      function clearBoth() {
+        clearSlot(1);
+        clearSlot(2);
+      }
+
+      function clearSlotSilent(n) {
+        const imgEl = n === 1 ? els.img1 : els.img2;
+
+        imgEl.onerror = null;
+        imgEl.onload = null;
+
+        if (n === 1) slot1 = null;
+        else slot2 = null;
+
+        imgEl.removeAttribute("data-code");
+        imgEl.style.display = "none";
+        imgEl.src = BLANK_IMG;
+      }
+
+      function clearBothSilent() {
         clearSlotSilent(1);
         clearSlotSilent(2);
-    }
+      }
 
+      function setImageWithFallback(imgEl, bases, code, opts = {}) {
+        imgEl.onerror = null;
+        imgEl.onload = null;
 
-    function setImageWithFallback(imgEl, bases, code, opts = {}) {
-      imgEl.onerror = null;
-      imgEl.onload = null;
+        imgEl.style.display = "block";
+        imgEl.setAttribute("data-code", code);
 
-      imgEl.style.display = "block";
-      imgEl.setAttribute("data-code", code);
-
-      let baseIdx = 0;
-      let extIdx = 0;
+        let baseIdx = 0;
+        let extIdx = 0;
         const showError = opts.showError === true;
-      const tryNext = () => {
-        if (imgEl.getAttribute("data-code") !== code) return;
+        const tryNext = () => {
+          if (imgEl.getAttribute("data-code") !== code) return;
 
-        if (baseIdx >= bases.length) {
+          if (baseIdx >= bases.length) {
             if (typeof opts.onMissing === "function") opts.onMissing();
-            if (showError) setMessage(`Image introuvable pour le code ${code}.`, "bad", { force: true });
+            if (showError)
+              setMessage(`Image introuvable pour le code ${code}.`, "bad", {
+                force: true,
+              });
             return;
-        }
+          }
 
+          const base = bases[baseIdx];
+          if (extIdx >= IMAGE_EXTS.length) {
+            baseIdx++;
+            extIdx = 0;
+            tryNext();
+            return;
+          }
 
-        const base = bases[baseIdx];
-        if (extIdx >= IMAGE_EXTS.length) {
-          baseIdx++;
-          extIdx = 0;
+          const ext = IMAGE_EXTS[extIdx++];
+          imgEl.src = `${base}${code}.${ext}`;
+        };
+
+        imgEl.onerror = () => {
+          if (imgEl.getAttribute("data-code") !== code) return;
           tryNext();
-          return;
+        };
+
+        tryNext();
+      }
+
+      function setSlotCardImage(imgEl, code) {
+        setImageWithFallback(imgEl, [CARD_IMAGE_BASE], code);
+      }
+
+      function placeCard(code) {
+        if (slot1 && slot2) {
+          setMessage(
+            "Deux cartes déjà en place.\nTouchez une carte pour la retirer et rescanner.",
+            "bad",
+            { force: true }
+          );
+          return false;
         }
 
-        const ext = IMAGE_EXTS[extIdx++];
-        imgEl.src = `${base}${code}.${ext}`;
-      };
+        if (!slot1) {
+          slot1 = code;
+          setSlotCardImage(els.img1, code);
+          setMessage(
+            "Carte 1 enregistrée.\nMaintiens SCAN pour lire la deuxième carte."
+          );
+          return true;
+        }
 
-      imgEl.onerror = () => {
-        if (imgEl.getAttribute("data-code") !== code) return;
-        tryNext();
-      };
+        if (!slot2) {
+          slot2 = code;
+          setSlotCardImage(els.img2, code);
+          evaluateCraft(false);
+          return true;
+        }
 
-      tryNext();
-    }
-
-    function setSlotCardImage(imgEl, code) {
-      setImageWithFallback(imgEl, [CARD_IMAGE_BASE], code);
-    }
-
-    function placeCard(code) {
-      if (slot1 && slot2) {
-        setMessage("Deux cartes déjà en place.\nTouchez une carte pour la retirer et rescanner.", "bad", { force: true });
         return false;
       }
 
-      if (!slot1) {
-        slot1 = code;
-        setSlotCardImage(els.img1, code);
-        setMessage("Carte 1 enregistrée.\nMaintiens SCAN pour lire la deuxième carte.");
-        return true;
+      async function playCraftAnimation(outputIds) {
+        // Nettoie les FX précédents
+        els.fxLayer.innerHTML = "";
+
+        const ids = (outputIds || []).slice(0, 3);
+        if (ids.length === 0) return;
+
+        // Helper: essaie de trouver une URL d'image existante (sans message d'erreur)
+        const findFirstExistingImageUrl = (id) =>
+          new Promise((resolve) => {
+            const code = String(id);
+            const candidates = [];
+
+            for (const ext of IMAGE_EXTS)
+              candidates.push(`${ITEM_IMAGE_BASE}${code}.${ext}`);
+            for (const ext of IMAGE_EXTS)
+              candidates.push(`${CARD_IMAGE_BASE}${code}.${ext}`);
+
+            let i = 0;
+            const probe = new Image();
+
+            const tryNext = () => {
+              if (i >= candidates.length) return resolve(null);
+              const url = candidates[i++];
+              probe.onload = () => resolve(url);
+              probe.onerror = tryNext;
+              probe.src = url;
+            };
+
+            tryNext();
+          });
+
+        // Précharge toutes les images; garde seulement celles trouvées
+        const resolved = await Promise.all(
+          ids.map(async (id) => ({
+            id,
+            url: await findFirstExistingImageUrl(id),
+          }))
+        );
+
+        const present = resolved.filter((x) => !!x.url);
+
+        // AUCUNE image => pas d'animation
+        if (present.length === 0) return;
+
+        const spacing = 140;
+
+        present.forEach((x, i) => {
+          const fx = document.createElement("div");
+          fx.className = "fxItem";
+
+          const dx =
+            (i - (present.length - 1) / 2) *
+            (present.length === 1 ? 0 : spacing);
+          fx.style.setProperty("--dx", `${dx}px`);
+
+          const img = document.createElement("img");
+          img.alt = `Objet ${x.id}`;
+          img.src = x.url;
+
+          fx.appendChild(img);
+          els.fxLayer.appendChild(fx);
+
+          // 3s + marge
+          setTimeout(() => fx.remove(), 3200);
+        });
       }
 
-      if (!slot2) {
-        slot2 = code;
-        setSlotCardImage(els.img2, code);
-        evaluateCraft(false);
-        return true;
-      }
+      async function evaluateCraft(forceMessage) {
+        if (!slot1 || !slot2) return;
 
-      return false;
-    }
+        const k = keyOf(slot1, slot2);
+        const recipe = RECIPES[k];
 
-    async function playCraftAnimation(outputIds) {
-  // Nettoie les FX précédents
-  els.fxLayer.innerHTML = "";
+        if (
+          !recipe ||
+          !Array.isArray(recipe.outputs) ||
+          recipe.outputs.length === 0
+        ) {
+          if (navigator.vibrate) navigator.vibrate([40, 60, 40]);
+          setMessage(
+            "Mauvaise association.\nTouchez une carte pour la retirer.",
+            "bad",
+            { force: true }
+          );
+          return;
+        }
 
-  const ids = (outputIds || []).slice(0, 3);
-  if (ids.length === 0) return;
+        // Animation des objets craftés
+        await playCraftAnimation(recipe.outputs);
 
-  // Helper: essaie de trouver une URL d'image existante (sans message d'erreur)
-  const findFirstExistingImageUrl = (id) => new Promise((resolve) => {
-    const code = String(id);
-    const candidates = [];
+        // Message succès (reste plus longtemps)
+        const outputsLines =
+          recipe.outputs.length === 1
+            ? [`${itemLabel(recipe.outputs[0])}`]
+            : ["", ...recipe.outputs.map((id) => `• ${itemLabel(id)}`)];
 
-    for (const ext of IMAGE_EXTS) candidates.push(`${ITEM_IMAGE_BASE}${code}.${ext}`);
-    for (const ext of IMAGE_EXTS) candidates.push(`${CARD_IMAGE_BASE}${code}.${ext}`);
+        if (navigator.vibrate) navigator.vibrate(80);
 
-    let i = 0;
-    const probe = new Image();
-
-    const tryNext = () => {
-      if (i >= candidates.length) return resolve(null);
-      const url = candidates[i++];
-      probe.onload = () => resolve(url);
-      probe.onerror = tryNext;
-      probe.src = url;
-    };
-
-    tryNext();
-  });
-
-  // Précharge toutes les images; garde seulement celles trouvées
-  const resolved = await Promise.all(
-    ids.map(async (id) => ({ id, url: await findFirstExistingImageUrl(id) }))
-  );
-
-  const present = resolved.filter(x => !!x.url);
-
-  // AUCUNE image => pas d'animation
-  if (present.length === 0) return;
-
-  const spacing = 140;
-
-  present.forEach((x, i) => {
-    const fx = document.createElement("div");
-    fx.className = "fxItem";
-
-    const dx = (i - (present.length - 1) / 2) * (present.length === 1 ? 0 : spacing);
-    fx.style.setProperty("--dx", `${dx}px`);
-
-    const img = document.createElement("img");
-    img.alt = `Objet ${x.id}`;
-    img.src = x.url;
-
-    fx.appendChild(img);
-    els.fxLayer.appendChild(fx);
-
-    // 3s + marge
-    setTimeout(() => fx.remove(), 3200);
-  });
-}
-
-
-    async function evaluateCraft(forceMessage) {
-      if (!slot1 || !slot2) return;
-
-      const k = keyOf(slot1, slot2);
-      const recipe = RECIPES[k];
-
-      if (!recipe || !Array.isArray(recipe.outputs) || recipe.outputs.length === 0) {
-        if (navigator.vibrate) navigator.vibrate([40, 60, 40]);
-        setMessage("Mauvaise association.\nTouchez une carte pour la retirer.", "bad", { force: true });
-        return;
-      }
-
-      // Animation des objets craftés
-      await playCraftAnimation(recipe.outputs);
-
-
-      // Message succès (reste plus longtemps)
-      const outputsLines = recipe.outputs.length === 1
-        ? [`${itemLabel(recipe.outputs[0])}`]
-        : ["", ...recipe.outputs.map(id => `• ${itemLabel(id)}`)];
-
-      if (navigator.vibrate) navigator.vibrate(80);
-
-      setMessage(
-        outputsLines.join("\n"),
-        "ok",
-        { force: !!forceMessage || true, holdMs: SUCCESS_HOLD_MS } // force + hold
-      );
-      const usedA = slot1;
+        setMessage(
+          outputsLines.join("\n"),
+          "ok",
+          { force: !!forceMessage || true, holdMs: SUCCESS_HOLD_MS } // force + hold
+        );
+        const usedA = slot1;
         const usedB = slot2;
 
         setTimeout(() => {
-        // On ne clear que si les slots sont toujours ceux du craft (sinon l’utilisateur a déjà agi)
-        if (slot1 === usedA && slot2 === usedB) {
+          // On ne clear que si les slots sont toujours ceux du craft (sinon l’utilisateur a déjà agi)
+          if (slot1 === usedA && slot2 === usedB) {
             clearBothSilent();
-        }
+          }
         }, 2000);
+      }
 
-    }
-
-    function disarmScanUI() {
-      scanArmed = false;
-      scanConsumed = false;
-      els.btnScan.classList.remove("active");
-    }
-
-    function onDetected(raw) {
-      // Gating: ignore tant que SCAN n'est pas maintenu + 1 scan par appui
-      if (!scanArmed || scanConsumed) return;
-
-      const code = normalizeCode(raw);
-      if (!code) return;
-
-      const now = Date.now();
-      const last = lastSeen.get(code) || 0;
-      if (now - last < COOLDOWN_MS) return;
-      lastSeen.set(code, now);
-
-      const placed = placeCard(code);
-      if (placed) {
-        scanConsumed = true;
+      function disarmScanUI() {
         scanArmed = false;
+        scanConsumed = false;
         els.btnScan.classList.remove("active");
       }
-    }
 
-    async function startScanner() {
-      if (qrScanner) return;
+      function onDetected(raw) {
+        // Gating: ignore tant que SCAN n'est pas maintenu + 1 scan par appui
+        if (!scanArmed || scanConsumed) return;
 
-      qrScanner = new QrScanner(
-        els.video,
-        (result) => onDetected(result?.data ?? result),
-        {
-          preferredCamera: "environment",
-          returnDetailedScanResult: true,
-          maxScansPerSecond: 12,
+        const code = normalizeCode(raw);
+        if (!code) return;
+
+        const now = Date.now();
+        const last = lastSeen.get(code) || 0;
+        if (now - last < COOLDOWN_MS) return;
+        lastSeen.set(code, now);
+
+        const placed = placeCard(code);
+        if (placed) {
+          scanConsumed = true;
+          scanArmed = false;
+          els.btnScan.classList.remove("active");
         }
-      );
-
-      try {
-        await qrScanner.start();
-        els.camOverlay.classList.add("hidden");
-        els.btnStop.style.display = "inline-block";
-        if (!slot1 && !slot2) setMessage("Caméra active.\nMaintiens SCAN pour lire une carte.", "", { force: true });
-      } catch {
-        qrScanner.destroy();
-        qrScanner = null;
-        setMessage("Impossible d’accéder à la caméra.\nOuvre la page en HTTPS (ou localhost) et accepte la permission.", "bad", { force: true });
       }
-    }
 
-    function stopScanner() {
-      if (!qrScanner) return;
-      qrScanner.stop();
-      qrScanner.destroy();
-      qrScanner = null;
-      els.btnStop.style.display = "none";
-      els.camOverlay.classList.remove("hidden");
-      disarmScanUI();
-      setMessage("Caméra arrêtée.\nTouchez l’écran caméra pour redémarrer.", "", { force: true });
-    }
+      async function startScanner() {
+        if (qrScanner) return;
 
-    // ===== Events =====
-    els.startHitbox.addEventListener("click", startScanner);
-    els.startHitbox.addEventListener("touchend", (e) => { e.preventDefault(); startScanner(); }, { passive: false });
+        qrScanner = new QrScanner(
+          els.video,
+          (result) => onDetected(result?.data ?? result),
+          {
+            preferredCamera: "environment",
+            returnDetailedScanResult: true,
+            maxScansPerSecond: 12,
+          }
+        );
 
-    els.btnStop.addEventListener("click", stopScanner);
-    els.btnReset.addEventListener("click", clearBoth);
+        try {
+          await qrScanner.start();
+          els.camOverlay.classList.add("hidden");
+          els.btnStop.style.display = "inline-block";
+          if (!slot1 && !slot2)
+            setMessage(
+              "Caméra active.\nMaintiens SCAN pour lire une carte.",
+              "",
+              { force: true }
+            );
+        } catch {
+          qrScanner.destroy();
+          qrScanner = null;
+          setMessage(
+            "Impossible d’accéder à la caméra.\nOuvre la page en HTTPS (ou localhost) et accepte la permission.",
+            "bad",
+            { force: true }
+          );
+        }
+      }
 
-    // Tap carte => suppression (force + casse le hold)
-    els.img1.addEventListener("click", () => clearSlot(1));
-    els.img2.addEventListener("click", () => clearSlot(2));
-    els.img1.addEventListener("touchend", (e) => { e.preventDefault(); clearSlot(1); }, { passive: false });
-    els.img2.addEventListener("touchend", (e) => { e.preventDefault(); clearSlot(2); }, { passive: false });
-
-    // Bouton SCAN (maintenir)
-    els.btnScan.addEventListener("pointerdown", (e) => {
-      e.preventDefault();
-      if (!qrScanner) startScanner();
-      scanArmed = true;
-      scanConsumed = false;
-      els.btnScan.classList.add("active");
-      try { els.btnScan.setPointerCapture(e.pointerId); } catch {}
-    }, { passive: false });
-
-    const releaseScan = (e) => {
-      e.preventDefault?.();
-      disarmScanUI();
-      try { if (e?.pointerId != null) els.btnScan.releasePointerCapture(e.pointerId); } catch {}
-    };
-    els.btnScan.addEventListener("pointerup", releaseScan, { passive: false });
-    els.btnScan.addEventListener("pointercancel", releaseScan, { passive: false });
-    els.btnScan.addEventListener("pointerleave", releaseScan, { passive: false });
-
-    window.addEventListener("beforeunload", () => {
-      if (qrScanner) {
+      function stopScanner() {
+        if (!qrScanner) return;
         qrScanner.stop();
         qrScanner.destroy();
         qrScanner = null;
+        els.btnStop.style.display = "none";
+        els.camOverlay.classList.remove("hidden");
+        disarmScanUI();
+        setMessage(
+          "Caméra arrêtée.\nTouchez l’écran caméra pour redémarrer.",
+          "",
+          { force: true }
+        );
       }
-    });
 
-    // Init
-    requestAnimationFrame(fitMessageText);
-  </script>
-</body>
+      // ===== Events =====
+      els.startHitbox.addEventListener("click", startScanner);
+      els.startHitbox.addEventListener(
+        "touchend",
+        (e) => {
+          e.preventDefault();
+          startScanner();
+        },
+        { passive: false }
+      );
+
+      els.btnStop.addEventListener("click", stopScanner);
+      els.btnReset.addEventListener("click", clearBoth);
+
+      // Tap carte => suppression (force + casse le hold)
+      els.img1.addEventListener("click", () => clearSlot(1));
+      els.img2.addEventListener("click", () => clearSlot(2));
+      els.img1.addEventListener(
+        "touchend",
+        (e) => {
+          e.preventDefault();
+          clearSlot(1);
+        },
+        { passive: false }
+      );
+      els.img2.addEventListener(
+        "touchend",
+        (e) => {
+          e.preventDefault();
+          clearSlot(2);
+        },
+        { passive: false }
+      );
+
+      // Bouton SCAN (maintenir)
+      els.btnScan.addEventListener(
+        "pointerdown",
+        (e) => {
+          e.preventDefault();
+          if (!qrScanner) startScanner();
+          scanArmed = true;
+          scanConsumed = false;
+          els.btnScan.classList.add("active");
+          try {
+            els.btnScan.setPointerCapture(e.pointerId);
+          } catch {}
+        },
+        { passive: false }
+      );
+
+      const releaseScan = (e) => {
+        e.preventDefault?.();
+        disarmScanUI();
+        try {
+          if (e?.pointerId != null)
+            els.btnScan.releasePointerCapture(e.pointerId);
+        } catch {}
+      };
+      els.btnScan.addEventListener("pointerup", releaseScan, {
+        passive: false,
+      });
+      els.btnScan.addEventListener("pointercancel", releaseScan, {
+        passive: false,
+      });
+      els.btnScan.addEventListener("pointerleave", releaseScan, {
+        passive: false,
+      });
+
+      window.addEventListener("beforeunload", () => {
+        if (qrScanner) {
+          qrScanner.stop();
+          qrScanner.destroy();
+          qrScanner = null;
+        }
+      });
+
+      // Init
+      requestAnimationFrame(fitMessageText);
+    </script>
+  </body>
 </html>

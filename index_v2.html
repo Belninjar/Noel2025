@@ -75,18 +75,15 @@
       }
 
       #video {
-        width: 100%;
-        height: 100%;
+        width: 200%;
+        height: 200%;
         object-fit: cover;
         display: block;
-        transform-origin: center;
-        transform: translateZ(0) scale(1);
+        position: absolute;     /* permet de centrer dans #camRegion */
+        
       }
 
-      /* Fallback “zoom visuel” seulement si le zoom natif n’est pas supporté */
-      #video.zoom2 {
-        transform: translateZ(0) scale(2);
-      }
+
 
 
       #camOverlay {
@@ -982,26 +979,6 @@
         }
       }
 
-      async function applyTrackZoom(zoomValue) {
-        try {
-          // attendre que QrScanner ait bien attaché le stream
-          for (let i = 0; i < 20; i++) {
-            const track = els.video?.srcObject?.getVideoTracks?.()[0];
-            if (track) {
-              const caps = track.getCapabilities?.();
-              if (!caps || !("zoom" in caps)) return false;
-
-              const z = Math.min(caps.zoom.max, Math.max(caps.zoom.min, zoomValue));
-              await track.applyConstraints({ advanced: [{ zoom: z }] });
-              return true;
-            }
-            await new Promise(r => setTimeout(r, 50));
-          }
-          return false;
-        } catch {
-          return false;
-        }
-      }
 
 
 
@@ -1028,8 +1005,7 @@
 
         try {
           await qrScanner.start();
-          const nativeZoomApplied = await applyTrackZoom(2);
-          els.video.classList.toggle("zoom2", !nativeZoomApplied);
+
 
 
           els.camOverlay.classList.add("hidden");
@@ -1057,8 +1033,6 @@
         qrScanner.stop();
         qrScanner.destroy();
         qrScanner = null;
-        els.video.classList.remove("zoom2");
-
         if (els.btnStop) els.btnStop.style.display = "none";
         els.camOverlay.classList.remove("hidden");
         disarmScanUI();

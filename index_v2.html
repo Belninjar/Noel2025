@@ -79,8 +79,15 @@
         height: 100%;
         object-fit: cover;
         display: block;
-        transform: translateZ(0);
+        transform-origin: center;
+        transform: translateZ(0) scale(1);
       }
+
+      /* Fallback “zoom visuel” seulement si le zoom natif n’est pas supporté */
+      #video.zoom2 {
+        transform: translateZ(0) scale(2);
+      }
+
 
       #camOverlay {
         position: absolute;
@@ -476,20 +483,6 @@
     <div id="board">
       <div id="camRegion">
         <video id="video" playsinline muted></video>
-
-        <div id="tinyControls">
-          <button
-            class="tinyBtn"
-            id="btnStop"
-            title="Arrêter la caméra"
-            style="display: none"
-          >
-            ⏹
-          </button>
-          <button class="tinyBtn" id="btnReset" title="Retirer les 2 cartes">
-            ↺
-          </button>
-        </div>
 
         <div id="camOverlay">
           Touchez ici pour activer la caméra<br />
@@ -989,8 +982,39 @@
         }
       }
 
+      async function applyTrackZoom(zoomValue) {
+        try {
+          // attendre que QrScanner ait bien attaché le stream
+          for (let i = 0; i < 20; i++) {
+            const track = els.video?.srcObject?.getVideoTracks?.()[0];
+            if (track) {
+              const caps = track.getCapabilities?.();
+              if (!caps || !("zoom" in caps)) return false;
+
+              const z = Math.min(caps.zoom.max, Math.max(caps.zoom.min, zoomValue));
+              await track.applyConstraints({ advanced: [{ zoom: z }] });
+              return true;
+            }
+            await new Promise(r => setTimeout(r, 50));
+          }
+          return false;
+        } catch {
+          return false;
+        }
+      }
+
+
+
       async function startScanner() {
         if (qrScanner) return;
+        if (!window.isSecureContext && location.hostname !== "localhost" && location.hostname !== "127.0.0.1") {
+          setMessage(
+            "Caméra indisponible ici.\nOuvre la page en HTTPS (ou localhost).",
+            "bad",
+            { force: true }
+          );
+          return;
+        }
 
         qrScanner = new QrScanner(
           els.video,
@@ -1004,8 +1028,13 @@
 
         try {
           await qrScanner.start();
+          const nativeZoomApplied = await applyTrackZoom(2);
+          els.video.classList.toggle("zoom2", !nativeZoomApplied);
+
+
           els.camOverlay.classList.add("hidden");
-          els.btnStop.style.display = "inline-block";
+          if (els.btnStop) els.btnStop.style.display = "inline-block";
+
           if (!slot1 && !slot2)
             setMessage(
               "Caméra active.\nMaintiens SCAN pour lire une carte.",
@@ -1028,7 +1057,9 @@
         qrScanner.stop();
         qrScanner.destroy();
         qrScanner = null;
-        els.btnStop.style.display = "none";
+        els.video.classList.remove("zoom2");
+
+        if (els.btnStop) els.btnStop.style.display = "none";
         els.camOverlay.classList.remove("hidden");
         disarmScanUI();
         setMessage(
@@ -1049,8 +1080,9 @@
         { passive: false }
       );
 
-      els.btnStop.addEventListener("click", stopScanner);
-      els.btnReset.addEventListener("click", clearBoth);
+      if (els.btnStop) els.btnStop.addEventListener("click", stopScanner);
+      if (els.btnReset) els.btnReset.addEventListener("click", clearBoth);
+
 
       // Tap carte => suppression (force + casse le hold)
       els.img1.addEventListener("click", () => clearSlot(1));
